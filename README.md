@@ -11,6 +11,8 @@ You host it yourself. AI Gude is free and open source software.
 **Live demo:** [aigude.alexdoes.dev](https://aigude.alexdoes.dev). Sign in with the user `demo` and the password `demo`.
 You can browse the Episodes and play them. You cannot switch users, produce, retry or delete Episodes, and the log, the editor of the User Config and the problems of its files stay closed.
 
+![The page of an Episode with its player, its Chapters and what it consumed](docs/episode-player.png)
+
 ## Table of Contents
 
 - [Getting Started](#getting-started)
