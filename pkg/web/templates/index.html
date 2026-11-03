@@ -1,0 +1,53 @@
+{{define "content"}}
+{{with .Selected}}
+<section aria-labelledby="h-episodes">
+  <h2 class="section-head" id="h-episodes">Episodes</h2>
+  {{if or $.Episodes.Rows $.Producing}}
+  <div class="eps">
+    {{range $.Producing}}
+    <div class="ep-item">
+      <div class="ep ep-producing" data-testid="episode-generating">
+        <span class="cover"><canvas class="cv" aria-hidden="true" data-cast="{{.ID}}" data-ep="show"></canvas></span>
+        <span class="ep-text">
+          <span class="ep-title">{{.DisplayName}}</span>
+          <span class="ep-sub">Generating …</span>
+        </span>
+      </div>
+    </div>
+    {{end}}
+    {{template "episodeList" $.Episodes}}
+  </div>
+  {{else}}
+  <p class="muted">No Episodes yet.</p>
+  {{end}}
+</section>
+
+<section aria-labelledby="h-profiles">
+  <h2 class="section-head" id="h-profiles">CastProfiles</h2>
+  <div class="casts">
+    {{range $.CastCards}}
+    <article class="cast-card">
+      <div class="cover"><canvas class="cv" aria-hidden="true" data-cast="{{.ID}}" data-ep="show"></canvas></div>
+      <div class="cast-body">
+        <h3>{{.DisplayName}}{{if not .Enabled}} <small>(switched off)</small>{{end}}</h3>
+        <p class="cast-meta">Max Lookback: <code>{{.MaxLookbackText}}</code></p>
+        <ul class="subs">
+          {{range .Subscriptions}}<li>{{.DisplayName}}</li>{{end}}
+        </ul>
+        {{if .NothingNew}}<p class="note" data-testid="nothing-new-{{.ID}}">No new Content since the last Episode (looked {{.NothingNew}}).</p>{{end}}
+        {{if not $.Demo}}{{template "generate" .}}{{end}}
+      </div>
+    </article>
+    {{else}}
+    <p class="muted">No CastProfiles yet. Add one to your User Config file.</p>
+    {{end}}
+  </div>
+</section>
+{{else}}
+<article class="empty">
+  <header>Nothing to listen to yet</header>
+  <p>AI Gude turns the feeds and sites you follow into a daily audio briefing. No Episodes have been produced yet.</p>
+  <p>Describe what you follow in a User Config file (<code>.toml</code>) in the folder <code>{{.UsersDir}}</code>.</p>
+</article>
+{{end}}
+{{end}}

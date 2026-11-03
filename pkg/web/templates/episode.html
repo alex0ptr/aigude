@@ -1,0 +1,76 @@
+{{define "content"}}
+{{with .Episode}}
+<p class="back"><a href="/">&larr; Episodes</a></p>
+
+<section class="now" data-player data-duration="{{.Seconds}}" aria-label="Now Playing">
+  <div class="now-head">
+    <div class="cover cover-lg"><canvas class="cv" role="img" aria-label="Generated cover" data-cast="{{.CastProfileID}}" data-ep="{{.ID}}"></canvas></div>
+    <div class="now-title">
+      <p class="eyebrow"><i class="lamp"></i><span>Now Playing</span><span class="cast-name">{{.CastProfile}}</span></p>
+      <h1>{{.Title}}</h1>
+      <p class="meta">{{.Created}} · {{.Duration}}{{if .Chapters}} · {{len .Chapters}} {{if eq (len .Chapters) 1}}Chapter{{else}}Chapters{{end}}{{end}} {{template "usage" .}}</p>
+    </div>
+  </div>
+
+  <audio id="player" controls preload="metadata" src="/episodes/{{.ID}}/audio"></audio>
+
+  <div class="player-ui" hidden>
+    <div class="timeline" role="slider" tabindex="0" aria-label="Position in the Episode" aria-valuemin="0"></div>
+    <div class="times">
+      <span data-clock>0:00</span>
+      <span class="chap-now" data-chapter-now></span>
+      <span class="total" data-total>{{.Duration}}</span>
+    </div>
+    <div class="controls">
+      <button type="button" class="btn" data-action="previous-chapter" aria-label="Previous Chapter" title="Previous Chapter (j)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button type="button" class="btn" data-action="back" aria-label="15 seconds back">−15</button>
+      <button type="button" class="btn btn-play" data-action="toggle" aria-label="Play or pause" title="Play or pause (space)">
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+      <button type="button" class="btn" data-action="forward" aria-label="30 seconds forward">+30</button>
+      <button type="button" class="btn" data-action="next-chapter" aria-label="Next Chapter" title="Next Chapter (k)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+      <button type="button" class="btn" data-action="rate" data-rate aria-label="Playback speed">1×</button>
+    </div>
+  </div>
+
+  {{if .Chapters}}
+  <ol class="chapters" aria-label="Chapters">
+    {{range .Chapters}}<li><span class="ts">{{.Clock}}</span><a href="#" data-chapter-start="{{.Start}}">{{.Title}}</a></li>
+    {{end}}
+  </ol>
+  {{end}}
+</section>
+
+{{if .Script}}
+<section class="script" aria-label="Script">
+  {{range .Script}}
+  <div class="script-section">
+    <h2>{{.Heading}}</h2>
+    {{range .Paragraphs}}<p>{{.}}</p>
+    {{end}}
+    {{if .Sources}}
+    <ul class="sources" aria-label="Sources">
+      {{range .Sources}}<li data-testid="source"><a href="/episodes/{{$.Episode.ID}}/sources/{{.Number}}" hx-boost="false"
+        hx-get="/episodes/{{$.Episode.ID}}/sources/{{.Number}}" hx-target="#source-dialog" hx-swap="innerHTML"
+        hx-on::after-request="if (event.detail.successful) document.getElementById('source-dialog').showModal()">{{.Title}}</a></li>
+      {{end}}
+    </ul>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+<dialog id="source-dialog" class="source-dialog" aria-label="Source"></dialog>
+{{end}}
+
+{{if not $.Demo}}
+<form class="remove" method="post" action="/episodes/{{.ID}}/delete" hx-confirm="Delete this Episode and its audio?">
+  <button type="submit" class="btn btn-quiet">Delete</button>
+</form>
+{{end}}
+{{end}}
+{{end}}

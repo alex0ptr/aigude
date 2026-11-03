@@ -1,0 +1,129 @@
+# User Config of Alex, also the sample for new ones.
+#
+# Every .toml file directly in the users folder (users_dir in the settings,
+# "users" by default) is one User. The file name is free, the User is identified
+# by the Id below. Check a file with `aigude validate`; a file that is edited
+# while the service runs is picked up at once, and an invalid edit keeps the
+# last valid setup.
+#
+# Structure:
+#   [user]                                         who this file belongs to
+#   [cast_profiles.<id>]                           a show
+#   [cast_profiles.<id>.subscriptions.<id>]        a source of Content of that show
+#   [[cast_profiles.<id>.schedules]]               when an Episode of that show is made
+#
+# Ids are lowercase slugs (a-z, 0-9, underscore, hyphen) and never change;
+# changing one starts a new thing. Display names can change at any time.
+# Every key that is not listed in this file is an error, so typos do not go
+# unnoticed. Options that are commented out below show the default or an example.
+
+# --- User ---------------------------------------------------------------------
+
+[user]
+# Mandatory. Id of the User, unique among all files in the folder (the file that
+# held an Id first keeps it).
+id = "alex"
+# Mandatory. Name shown in the interface.
+display_name = "Alex"
+
+# --- CastProfile --------------------------------------------------------------
+
+# A CastProfile is a show. A User can have several; their Episodes appear in one
+# list. Each CastProfile draws on the Subscriptions listed under it and
+# remembers which Content it has used, so no article is told twice.
+[cast_profiles.last-week-in-cncf]
+# Mandatory. Name shown in the interface.
+display_name = "Last Week in CNCF"
+
+# Mandatory, no default. How far back from the moment an Episode is made the
+# publication date of Content may lie, as a duration greater than zero such as
+# "24h" or "72h". Content without a publication date is skipped. Feeds that
+# publish less than once a day need a larger value to ever make it in. Eight days
+# are a little more than the weekly Schedule below, so nothing falls between two
+# Episodes; Content that was used already is not told again.
+max_lookback = "192h"
+
+# Optional. Number of spoken words an Episode of this CastProfile aims for and
+# should not exceed (1400 words are about ten minutes). Without it the service
+# setting word_budget applies. A Script with more than a tenth more or fewer
+# words is kept and noted in the log.
+word_budget = 1400
+
+# Optional. Language (BCP-47) of the Script and the speech. Without it the
+# service setting default_language applies ("de-DE").
+language = "en-US"
+
+# Optional. Replaces the default style guide (warm and informal, daily motto,
+# sources named, ends with a joke). The built-in rules for the Script itself
+# (writing for the ear, language, word_budget as target and maximum, date)
+# always apply and cannot be replaced.
+# prompt = "Short and dry, no jokes."
+
+# Optional. Voice of the speech; without it the service default voice is used.
+# voice = "Achernar"
+
+# Optional, default true. false switches the whole CastProfile off: none of its
+# Schedules runs.
+# enabled = false
+
+# --- Subscriptions ------------------------------------------------------------
+
+# A Subscription is one origin of Content of its CastProfile. At least one is
+# mandatory. Its Id only has to be unique within the CastProfile, and the order
+# in this file decides who wins when two Subscriptions deliver the same article.
+#
+# Options of a Subscription (all four are shown commented out in the template):
+#   display_name       mandatory, name shown in the interface
+#   kind               mandatory, "rss" is the only kind
+#   url                mandatory for "rss", an http or https address of the feed
+#   drop_query_params  optional list of query parameter names to ignore
+#
+# Content is identified by its link without the fragment (#...) and without the
+# parameters named in drop_query_params, so the same article from two feeds is
+# one item and is used once. Names are matched exactly; the rest of the query
+# stays, because it can be the article's number (?p=123). Changing the list
+# later can make an article that was used already count as new once.
+#
+# Template:
+# [cast_profiles.last-week-in-cncf.subscriptions.example]
+# display_name = "Example blog"
+# kind = "rss"
+# url = "https://example.com/feed.xml"
+# drop_query_params = ["utm_source", "utm_medium"]
+
+[cast_profiles.last-week-in-cncf.subscriptions.cncf-announcements]
+display_name = "CNCF Announcements"
+kind = "rss"
+url = "https://www.cncf.io/announcements/feed/"
+
+[cast_profiles.last-week-in-cncf.subscriptions.kubernetes]
+display_name = "Kubernetes Blog"
+kind = "rss"
+url = "https://kubernetes.io/feed.xml"
+
+[cast_profiles.last-week-in-cncf.subscriptions.cncf-blog]
+display_name = "CNCF Blog"
+kind = "rss"
+url = "https://www.cncf.io/blog/feed/"
+
+[cast_profiles.last-week-in-cncf.subscriptions.linuxfoundation]
+display_name = "Linux Foundation Blog"
+kind = "rss"
+url = "https://www.linuxfoundation.org/blog/rss.xml"
+
+# --- Schedules ----------------------------------------------------------------
+
+# A Schedule starts an Episode of its CastProfile. A CastProfile can have
+# several, none is allowed (then Episodes are made by hand with "Generate now").
+# When several Schedules fall due together, one Episode is made. A run that was
+# missed while the service was off is made up at the start. A run that finds no
+# unused Content makes no Episode.
+#
+# Options of a Schedule:
+#   weekdays  mandatory, any of mon tue wed thu fri sat sun
+#   time      mandatory, time of day as HH:MM (24 hours) in the service time zone
+#   enabled   optional, default true; false switches this Schedule off
+[[cast_profiles.last-week-in-cncf.schedules]]
+weekdays = ["fri"]
+time = "12:00"
+# enabled = false

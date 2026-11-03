@@ -1,0 +1,25 @@
+{{define "content"}}
+<p class="back"><a href="/">&larr; Episodes</a></p>
+<section aria-labelledby="h-config">
+  <h2 class="section-head" id="h-config">User Config <small class="muted">{{.Editor.File}}</small></h2>
+  {{if .Editor.Saved}}<p class="saved" role="status">Saved. The change is in force.</p>{{end}}
+  {{if .Editor.Conflict}}
+  <article class="problems" role="alert" data-testid="config-conflict">
+    <p>The file changed on disk after you opened it, so nothing was saved.
+    <a href="/config">Load the file again</a> (this discards your edits below).</p>
+  </article>
+  {{end}}
+  {{if .Editor.Problems}}
+  <article class="problems" role="alert" data-testid="config-errors">
+    <p>The text is not a valid User Config, so nothing was saved.</p>
+    <ul>{{range .Editor.Problems}}<li><code>{{.}}</code></li>{{end}}</ul>
+  </article>
+  {{end}}
+  <form method="post" action="/config" hx-boost="false">
+    <input type="hidden" name="hash" value="{{.Editor.Hash}}">
+    <textarea name="text" class="config-text" rows="30" spellcheck="false" aria-label="Text of the User Config file">
+{{.Editor.Text}}</textarea>
+    <button type="submit" class="btn btn-generate">Save</button>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,106 @@
+# A Firecrawl of your own for AI Gude, reduced from docker-compose.yaml in https://github.com/firecrawl/firecrawl:
+# the default Postgres queue, no authentication, no source checkout (the images come from ghcr.io, pinned by digest
+# of their `latest` tag). See README.md. pkg/firecrawl/firecrawl_integration_test.go starts this file.
+name: aigude-firecrawl
+
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  playwright-service:
+    image: ghcr.io/firecrawl/playwright-service@sha256:637fb8c8399634b02c2179da72566ce11644435e5d93e895bdbde4b1f9b0882a
+    environment:
+      PORT: 3000
+      MAX_CONCURRENT_PAGES: 10
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp/.cache:noexec,nosuid,size=1g
+    logging: *logging
+
+  api:
+    image: ghcr.io/firecrawl/firecrawl@sha256:6e635de5fef19d3591fbd1081a5ee1394dfe71ef19e108305e74600ecc7fa4b2
+    command: node dist/src/harness.js --start-docker
+    environment:
+      HOST: "0.0.0.0"
+      PORT: 3002
+      ENV: local
+      USE_DB_AUTHENTICATION: "false"
+      REDIS_URL: redis://redis:6379
+      REDIS_RATE_LIMIT_URL: redis://redis:6379
+      PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+      NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST: nuq-postgres
+      POSTGRES_PORT: 5432
+      NUM_WORKERS_PER_QUEUE: 8
+      HARNESS_STARTUP_TIMEOUT_MS: 60000
+    depends_on:
+      redis:
+        condition: service_started
+      playwright-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      nuq-postgres:
+        condition: service_healthy
+    # The API has no authentication: it is published on the loopback interface only. The test sets
+    # FIRECRAWL_PUBLISH to "127.0.0.1:" for a free port.
+    ports:
+      - "${FIRECRAWL_PUBLISH:-127.0.0.1:3002}:3002"
+    networks:
+      - backend
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    logging: *logging
+
+  redis:
+    image: redis:alpine
+    command: redis-server --bind 0.0.0.0
+    networks:
+      - backend
+    logging: *logging
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    command: rabbitmq-server
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - backend
+    logging: *logging
+
+  nuq-postgres:
+    image: ghcr.io/firecrawl/nuq-postgres@sha256:d719b36160eac2fcbe16dc7e7360ddb9c82c40ea5da183d07bf4a755c6a0b2ae
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - backend
+    logging: *logging
+
+networks:
+  backend:
+    driver: bridge

@@ -1,0 +1,173 @@
+version: "3"
+
+vars:
+  STATIC_DIR: pkg/web/static
+  PICO_VERSION: "2.1.1"
+  PICO_SHA256: fbc9a63fc9fc9f72d12fd7fc9806e11fa9f77ae4f9cad146b27003a1119ba3db
+  HTMX_VERSION: "2.0.4"
+  HTMX_SHA256: e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447
+  PRISM_VERSION: "1.30.0"
+  PRISM_SHA256: ed5ea2ce218febaea989b0734596bf218694488a4e92b6f107c6536d5675e04b
+  PRISM_TOML_SHA256: bc71428fec2670d59cda5ad3359615c91892f914f526cf6bfe316fc2ad55aff2
+  FONTS_VERSION: "5.3.0"
+  FONT_SUMS: |
+    8a462650535a7d255dd037dc3ca7eefde4b2b988bb110736290dbd7b74a83fea  pkg/web/static/fonts/syncopate-latin-700-normal.woff2
+    6c18d579fd87c3776be068b762cbc83fde3acb543d49eabd3ade842eb987e887  pkg/web/static/fonts/outfit-latin-wght-normal.woff2
+    08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7  pkg/web/static/fonts/ibm-plex-mono-latin-400-normal.woff2
+    01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22  pkg/web/static/fonts/ibm-plex-mono-latin-500-normal.woff2
+
+tasks:
+  assets:
+    desc: Download Pico.css, HTMX, Prism (with its TOML grammar) and the fonts into pkg/web/static (git-ignored, embedded into the binary at build time)
+    deps: [assets:fonts]
+    preconditions:
+      - sh: command -v curl
+        msg: "curl is required to download the assets but was not found on PATH"
+      - sh: command -v shasum
+        msg: "shasum is required to verify the downloaded assets but was not found on PATH"
+    status:
+      - echo "{{.PICO_SHA256}}  {{.STATIC_DIR}}/pico.min.css" | shasum -a 256 -c -
+      - echo "{{.HTMX_SHA256}}  {{.STATIC_DIR}}/htmx.min.js" | shasum -a 256 -c -
+      - echo "{{.PRISM_SHA256}}  {{.STATIC_DIR}}/prism.min.js" | shasum -a 256 -c -
+      - echo "{{.PRISM_TOML_SHA256}}  {{.STATIC_DIR}}/prism-toml.min.js" | shasum -a 256 -c -
+    cmds:
+      - mkdir -p {{.STATIC_DIR}}
+      - curl -fsSL -o {{.STATIC_DIR}}/pico.min.css https://cdn.jsdelivr.net/npm/@picocss/pico@{{.PICO_VERSION}}/css/pico.min.css
+      - curl -fsSL -o {{.STATIC_DIR}}/htmx.min.js https://cdn.jsdelivr.net/npm/htmx.org@{{.HTMX_VERSION}}/dist/htmx.min.js
+      - curl -fsSL -o {{.STATIC_DIR}}/prism.min.js https://cdn.jsdelivr.net/npm/prismjs@{{.PRISM_VERSION}}/prism.min.js
+      - curl -fsSL -o {{.STATIC_DIR}}/prism-toml.min.js https://cdn.jsdelivr.net/npm/prismjs@{{.PRISM_VERSION}}/components/prism-toml.min.js
+      - echo "{{.PICO_SHA256}}  {{.STATIC_DIR}}/pico.min.css" | shasum -a 256 -c -
+      - echo "{{.HTMX_SHA256}}  {{.STATIC_DIR}}/htmx.min.js" | shasum -a 256 -c -
+      - echo "{{.PRISM_SHA256}}  {{.STATIC_DIR}}/prism.min.js" | shasum -a 256 -c -
+      - echo "{{.PRISM_TOML_SHA256}}  {{.STATIC_DIR}}/prism-toml.min.js" | shasum -a 256 -c -
+
+  assets:fonts:
+    desc: Download the fonts of the theme (Syncopate, Outfit, IBM Plex Mono as woff2 from Fontsource) into pkg/web/static/fonts
+    preconditions:
+      - sh: command -v curl
+        msg: "curl is required to download the fonts but was not found on PATH"
+      - sh: command -v shasum
+        msg: "shasum is required to verify the downloaded fonts but was not found on PATH"
+    status:
+      - echo "{{.FONT_SUMS | trim}}" | shasum -a 256 -c -
+    cmds:
+      - mkdir -p {{.STATIC_DIR}}/fonts
+      - curl -fsSL -o {{.STATIC_DIR}}/fonts/syncopate-latin-700-normal.woff2 https://cdn.jsdelivr.net/npm/@fontsource/syncopate@{{.FONTS_VERSION}}/files/syncopate-latin-700-normal.woff2
+      - curl -fsSL -o {{.STATIC_DIR}}/fonts/outfit-latin-wght-normal.woff2 https://cdn.jsdelivr.net/npm/@fontsource-variable/outfit@{{.FONTS_VERSION}}/files/outfit-latin-wght-normal.woff2
+      - curl -fsSL -o {{.STATIC_DIR}}/fonts/ibm-plex-mono-latin-400-normal.woff2 https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@{{.FONTS_VERSION}}/files/ibm-plex-mono-latin-400-normal.woff2
+      - curl -fsSL -o {{.STATIC_DIR}}/fonts/ibm-plex-mono-latin-500-normal.woff2 https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@{{.FONTS_VERSION}}/files/ibm-plex-mono-latin-500-normal.woff2
+      - echo "{{.FONT_SUMS | trim}}" | shasum -a 256 -c -
+
+  build:
+    desc: Build all packages
+    deps: [assets]
+    cmds:
+      - go build ./...
+
+  firecrawl:up:
+    desc: Start the Firecrawl of your own from hack/firecrawl (needs Docker, the first start pulls the images) and wait until it listens
+    dir: hack
+    preconditions:
+      - sh: docker info >/dev/null 2>&1
+        msg: "Docker is not running; start it (for example Rancher Desktop), or use `task serve:hosted` to crawl through the hosted Firecrawl"
+    cmds:
+      - docker compose -f firecrawl/compose.yaml up -d
+      - |
+        for _ in $(seq 1 180); do
+          nc -z 127.0.0.1 3002 && exit 0
+          sleep 1
+        done
+        echo "the local Firecrawl does not listen on 127.0.0.1:3002 after 3 minutes; see: docker compose -f hack/firecrawl/compose.yaml logs api" >&2
+        exit 1
+
+  firecrawl:down:
+    desc: Stop and remove the Firecrawl of your own from hack/firecrawl
+    dir: hack
+    cmds:
+      - docker compose -f firecrawl/compose.yaml down
+
+  serve:
+    desc: Start the local test instance in hack/ with the local Firecrawl, reachable from the network (override with AIGUDE_LISTEN_ADDR; User Config in hack/users, database and audio in hack/data, hack/aigude.toml, GEMINI_API_KEY from the environment)
+    deps: [assets, firecrawl:up]
+    dir: hack
+    env:
+      AIGUDE_FIRECRAWL_URL: http://127.0.0.1:3002
+      FIRECRAWL_API_KEY: ""
+      AIGUDE_LISTEN_ADDR: '{{default "0.0.0.0:8080" .AIGUDE_LISTEN_ADDR}}'
+    cmds:
+      - go run ../cmd/aigude serve {{.CLI_ARGS}}
+
+  serve:hosted:
+    desc: Like serve, but crawling through the hosted Firecrawl (needs FIRECRAWL_API_KEY, costs credits)
+    deps: [assets]
+    dir: hack
+    env:
+      AIGUDE_LISTEN_ADDR: '{{default "0.0.0.0:8080" .AIGUDE_LISTEN_ADDR}}'
+    cmds:
+      - go run ../cmd/aigude serve {{.CLI_ARGS}}
+
+  test:
+    desc: Run unit tests (excludes the integration tests)
+    deps: [assets]
+    cmds:
+      - go test ./...
+
+  test:integration:
+    desc: "Run the integration tests: the live tests against the hosted Firecrawl (need FIRECRAWL_API_KEY, cost credits) and the test that starts a Firecrawl of your own (needs Docker; the first run pulls the images). A test whose key is missing is skipped"
+    deps: [assets]
+    cmds:
+      - go test -tags integration ./...
+
+  vet:
+    desc: Run go vet, including integration-tagged files
+    deps: [assets]
+    cmds:
+      - go vet -tags integration ./...
+
+  fmt:
+    desc: Format all Go source files
+    cmds:
+      - gofmt -l -w .
+
+  tidy:
+    desc: Tidy go.mod/go.sum
+    cmds:
+      - go mod tidy
+
+  deps:upgrade:
+    desc: Upgrade all Go dependencies to their latest versions
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  arch:
+    desc: Check the architecture rules in arch-go.yml
+    deps: [assets]
+    cmds:
+      - go tool arch-go
+
+  release:snapshot:
+    desc: Build the archives and the container image for linux/amd64 and linux/arm64 with GoReleaser into dist/, without publishing (needs Docker; GITHUB_REPOSITORY is derived from the Go module unless set, FFMPEG_VERSION comes from mise.toml)
+    env:
+      GITHUB_REPOSITORY:
+        sh: echo "${GITHUB_REPOSITORY:-$(go list -m | sed 's|^github.com/||')}"
+      FFMPEG_VERSION:
+        sh: mise config get -f mise.toml tools.ffmpeg
+    cmds:
+      - goreleaser release --snapshot --clean
+
+  release:
+    desc: Publish a release with GoReleaser (the pipeline calls it for a pushed tag; needs GITHUB_REPOSITORY and GITHUB_TOKEN, FFMPEG_VERSION comes from mise.toml)
+    env:
+      FFMPEG_VERSION:
+        sh: mise config get -f mise.toml tools.ffmpeg
+    cmds:
+      - goreleaser release --clean
+
+  check:
+    desc: Format, vet, check architecture, and test everything
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: arch
+      - task: test

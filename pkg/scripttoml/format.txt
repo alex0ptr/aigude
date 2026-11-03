@@ -1,0 +1,21 @@
+Reply with the script only, as TOML in exactly this format, with nothing before or after it and without a code fence:
+
+title = '''Episode title'''
+
+[[section]]
+heading = '''Introduction'''
+sources = []
+text = '''
+Spoken text of the introduction.
+'''
+
+[[section]]
+heading = '''Heading of a topic'''
+sources = [1, 3]
+text = '''
+Spoken text of this section.
+'''
+
+Rules for the format:
+- Write every title, heading and text between three single quotes, exactly as above. Everything between them is taken literally, so apostrophes, other quotation marks and backslashes are fine, but never write three single quotes in a row inside a value.
+- "sources" lists the numbers of the content items used in that section, for example [1, 3]. It is [] for the introduction and the closing. Write it before the text.

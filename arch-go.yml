@@ -1,0 +1,40 @@
+# Architecture rules for AI Gude, checked with `task arch` (go tool arch-go).
+#
+# Package patterns without a `*` are used as raw regular expressions by
+# arch-go, so they are anchored explicitly here. Only regular (non-test)
+# imports are inspected: test-only dependencies such as testify, or an integration
+# test importing an adapter, do not count as violations.
+version: 1
+threshold:
+  compliance: 100
+  coverage: 100
+dependenciesRules:
+  # 1. The business layer imports only the standard library and no adapters.
+  - package: '^github\.com/alex0ptr/aigude/business(/.+)?$'
+    shouldNotDependsOn:
+      internal:
+        - '^github\.com/alex0ptr/aigude/(pkg|cmd)(/.+)?$'
+      external:
+        - '.+'
+      standard:
+        - '^golang\.org/x/.+'
+  # 2. Nothing imports the entry point.
+  - package: '^github\.com/alex0ptr/aigude(/.+)?$'
+    shouldNotDependsOn:
+      internal:
+        - '^github\.com/alex0ptr/aigude/cmd(/.+)?$'
+  # 3. Helper packages import no other adapters: the shared HTTP client
+  #    imports only the version package, which imports nothing internal, the
+  #    audio package only the HTTP client package.
+  - package: '^github\.com/alex0ptr/aigude/pkg$'
+    shouldOnlyDependsOn:
+      internal:
+        - '^github\.com/alex0ptr/aigude/pkg/version$'
+  - package: '^github\.com/alex0ptr/aigude/pkg/version$'
+    shouldNotDependsOn:
+      internal:
+        - '^github\.com/alex0ptr/aigude/.+'
+  - package: '^github\.com/alex0ptr/aigude/pkg/audio$'
+    shouldOnlyDependsOn:
+      internal:
+        - '^github\.com/alex0ptr/aigude/pkg$'

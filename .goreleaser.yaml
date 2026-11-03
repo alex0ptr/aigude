@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: aigude
+
+# The static assets are embedded into the binary and downloaded by the task, not kept in git.
+before:
+  hooks:
+    - task assets
+
+builds:
+  - id: aigude
+    main: ./cmd/aigude
+    binary: aigude
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    # The version of the tag is the version of AI Gude (pkg/version); a snapshot stays "dev" and carries the commit Go
+    # stored in the binary. -s -w are GoReleaser's defaults.
+    ldflags:
+      - -s -w -X github.com/alex0ptr/aigude/pkg/version.tag={{ if .IsSnapshot }}dev{{ else }}{{ .Version }}{{ end }}
+
+archives:
+  - id: aigude
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - src: hack/aigude.toml
+        dst: examples/aigude.toml
+      - src: hack/users/demo.toml
+        dst: examples/users/demo.toml
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"
+
+# The image is built from the binaries above. GITHUB_REPOSITORY (owner/repository) is set by GitHub Actions; locally
+# `task release:snapshot` derives it from the Go module.
+dockers_v2:
+  - id: aigude
+    ids:
+      - aigude
+    dockerfile: Dockerfile
+    images:
+      - "ghcr.io/{{ tolower .Env.GITHUB_REPOSITORY }}"
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    # The ffmpeg of the image is the one of mise.toml, which the tasks put into FFMPEG_VERSION.
+    build_args:
+      FFMPEG_VERSION: "{{ .Env.FFMPEG_VERSION }}"
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.licenses: AGPL-3.0-or-later
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+
+release:
+  github:
+    owner: '{{ index (split .Env.GITHUB_REPOSITORY "/") 0 }}'
+    name: '{{ index (split .Env.GITHUB_REPOSITORY "/") 1 }}'

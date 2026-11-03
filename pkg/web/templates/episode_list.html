@@ -1,0 +1,31 @@
+{{define "episodeList"}}{{range .Rows}}
+{{if .Failed}}
+<div class="ep-item">
+<div class="ep ep-failed" data-testid="episode-failed">
+  <span class="cover"><canvas class="cv" aria-hidden="true" data-cast="{{.CastProfileID}}" data-ep="{{.ID}}"></canvas></span>
+  <span class="ep-text">
+    <span class="ep-title">Failed: {{.CastProfile}}</span>
+    <span class="ep-sub">{{.Created}}</span>
+    {{with .Failure}}<span class="ep-reason">{{.}}</span>{{end}}
+  </span>
+  <span class="ep-end ep-actions">
+    {{if not $.Demo}}<form method="post" action="/episodes/{{.ID}}/retry"><button type="submit" class="btn">Try again</button></form>
+    <form method="post" action="/episodes/{{.ID}}/delete"><button type="submit" class="btn btn-quiet">Dismiss</button></form>{{end}}
+  </span>
+</div>
+{{template "usage" .}}
+</div>
+{{else}}
+<div class="ep-item">
+<a class="ep" href="/episodes/{{.ID}}" data-testid="episode">
+  <span class="cover"><canvas class="cv" aria-hidden="true" data-cast="{{.CastProfileID}}" data-ep="{{.ID}}"></canvas></span>
+  <span class="ep-text">
+    <span class="ep-title">{{.Title}}</span>
+    <span class="ep-sub">{{.CastProfile}} · {{.Created}}</span>
+  </span>
+  <span class="ep-end">{{.Duration}}</span>
+</a>
+{{template "usage" .}}
+</div>
+{{end}}
+{{end}}{{with .More}}<button class="btn" hx-get="{{.}}" hx-swap="outerHTML">Load more</button>{{end}}{{end}}

@@ -1,0 +1,11 @@
+{{define "generate"}}
+<div class="gen"{{if .Generating}} hx-get="/cast-profiles/{{.ID}}/generation" hx-trigger="every 3s" hx-swap="outerHTML"{{end}}>
+  {{if .Generating}}
+  <button type="button" class="btn btn-generate" data-testid="generate-{{.ID}}" disabled aria-busy="true">Generating …</button>
+  {{else}}
+  <form method="post" action="/cast-profiles/{{.ID}}/generate">
+    <button type="submit" class="btn btn-generate" data-testid="generate-{{.ID}}">Generate now</button>
+  </form>
+  {{end}}
+</div>
+{{end}}

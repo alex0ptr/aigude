@@ -1,0 +1,4 @@
+{{define "usage"}}{{if .Usage}}<span class="usage" tabindex="0" aria-label="Resources used" aria-describedby="usage-{{.ID}}">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a9 9 0 0 0-9 9h2a7 7 0 1 1 14 0h2a9 9 0 0 0-9-9zm1 5-1.4.6L10 14a2 2 0 1 0 3 1.7z"/></svg>
+  <span class="usage-tip" id="usage-{{.ID}}" role="tooltip"><strong>Resources used</strong><ul>{{range .Usage}}<li>{{.}}</li>{{end}}</ul></span>
+</span>{{end}}{{end}}

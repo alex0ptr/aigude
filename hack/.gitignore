@@ -1,0 +1,10 @@
+# Local test instance (`task serve`): everything is ignored except the settings, the User Config
+# and the example for a Firecrawl of your own, so the database and the audio files stay local.
+*
+!.gitignore
+!aigude.toml
+!users/
+!users/demo.toml
+!firecrawl/
+!firecrawl/README.md
+!firecrawl/compose.yaml

@@ -1,0 +1,7 @@
+{{define "source"}}<article class="source" data-testid="source-popup">
+  <header><h3>{{.Title}}</h3></header>
+  <p class="meta">{{if .Name}}{{.Name}} · {{end}}Retrieved {{.Retrieved}}</p>
+  {{if .Link}}<p><a href="{{.Link}}" target="_blank" rel="noopener noreferrer">Original</a></p>{{end}}
+  <div class="source-text">{{.Text}}</div>
+  <form method="dialog"><button class="btn">Close</button></form>
+</article>{{end}}

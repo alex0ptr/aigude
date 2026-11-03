@@ -1,0 +1,73 @@
+# Settings of AI Gude, also the sample for new ones.
+#
+# The service reads a file named aigude.toml in its working directory, or the
+# file given with --config. It is optional: every line below shows the built-in
+# default (a test guards that), so change what you need and delete everything
+# you do not want to change.
+#
+# Precedence, lowest to highest: built-in defaults, this file, environment
+# variables (AIGUDE_ plus the upper-case key, for example AIGUDE_LISTEN_ADDR),
+# command line flags (the key with hyphens, for example --listen-addr).
+# A key that is not listed here is an error, so typos do not go unnoticed.
+# Changes need a restart.
+#
+# API keys are NOT settings. GEMINI_API_KEY and FIRECRAWL_API_KEY come from
+# the environment only; putting them in this file makes the service refuse to
+# start. FIRECRAWL_API_KEY is required for the hosted Firecrawl only, see
+# firecrawl_url.
+
+# The one time zone in which Schedules are
+# evaluated. An IANA name.
+time_zone = "Europe/Berlin"
+
+# Folder with one User Config file (.toml) per User.
+users_dir = "users"
+
+# Folder for the database and the audio files of the Episodes.
+data_dir = "data"
+
+# host:port of the web interface. There is no sign-in: only expose the service
+# on a trusted network. Use "0.0.0.0:8080" to reach it from other devices.
+# Behind a proxy that sets the header X-Aigude-User (a User Id) the port must be
+# reachable only through that proxy, and the proxy must overwrite the header
+# instead of passing it on from the client (README, Configure Multiple Users and
+# Authentication). Without the header the service is open to everyone who reaches
+# it. The User with the Id demo is shown read-only.
+listen_addr = "127.0.0.1:8080"
+
+# Language (BCP-47 code) and voice used when a CastProfile sets none.
+default_language = "de-DE"
+default_voice = "Achernar"
+
+# Spoken words an Episode aims for and should not exceed unless its CastProfile
+# states its own word_budget; 1400 words are about ten minutes.
+word_budget = 1400
+
+# Characters of one article handed to the language model.
+article_char_limit = 12000
+
+# How long a retrieved article page is served from the cache before it is retrieved again.
+# Expired pages are deleted once a day.
+crawl_cache_ttl = "240h"
+
+# Address of the Firecrawl API. The hosted service by default, which needs FIRECRAWL_API_KEY.
+# For a Firecrawl of your own set its address, for example "http://127.0.0.1:3002";
+# the key is then optional and only sent when set.
+firecrawl_url = "https://api.firecrawl.dev"
+
+# The Gemini model that writes the Script and the one that speaks it. The model
+# is not checked in advance: models come and go, and a name that does not exist
+# shows up as an error when the first Episode is produced.
+script_model = "gemini-flash-latest"
+tts_model = "gemini-3.8-flash-tts"
+
+# Longest the background work sleeps before it checks the wall clock again.
+scheduler_max_sleep = "1h"
+
+# Silence between two Sections of an Episode.
+section_pause = "1s"
+
+# How long an Episode is kept, counted from its creation. After that it is deleted together with its
+# audio (ready and failed ones, also those of a User whose file is missing), and its Content counts as
+# unused again. Checked at the start and once a day. "0s" keeps Episodes for ever.
+episode_retention = "720h"

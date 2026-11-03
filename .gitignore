@@ -1,0 +1,33 @@
+.envrc
+.direnv/
+mise.local.toml
+
+# Real service settings (see hack/aigude.toml) and local state
+aigude.toml
+/aigude
+/users/
+/data/
+
+# Downloaded by `task assets` (versions and checksums in Taskfile.yml)
+pkg/web/static/pico.min.css
+pkg/web/static/htmx.min.js
+pkg/web/static/prism.min.js
+pkg/web/static/prism-toml.min.js
+pkg/web/static/fonts/
+
+# Built by `task release:snapshot` (GoReleaser)
+/dist/
+
+# Personal instructions for Claude Code
+/CLAUDE.local.md
+
+# Editors, the operating system and local tooling
+.idea/
+.DS_Store
+/.claude/settings.local.json
+/.claude/launch.json
+/.claude/worktrees/
+
+# Test binaries and coverage
+*.test
+coverage.out

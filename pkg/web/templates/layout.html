@@ -1,0 +1,71 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>AI Gude</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <link rel="stylesheet" href="/static/theme.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/covers.js" defer></script>
+  <script src="/static/prism.min.js" data-manual defer></script>
+  <script src="/static/prism-toml.min.js" defer></script>
+  <script src="/static/config-editor.js" defer></script>
+  <script src="/static/player.js" defer></script>
+</head>
+<body hx-boost="true">
+  <div class="floor" aria-hidden="true"></div>
+  <div class="app">
+    <header class="top">
+      <a class="brand" href="/">
+        <span class="logo">AI GUDE</span>
+        <span class="kana" lang="ja">アイ・グーデ</span>
+      </a>
+      {{if and .Selected (not .Demo)}}<a class="config-link" href="/config">Edit User Config</a>{{end}}
+      {{if and .Users (not .Pinned)}}
+      <form class="user" method="post" action="/user">
+        <select name="user" aria-label="User" onchange="this.form.requestSubmit()">
+          {{$selected := .Selected}}
+          {{range .Users}}<option value="{{.ID}}"{{if eq .ID $selected.ID}} selected{{end}}>{{.DisplayName}}</option>
+          {{end}}
+        </select>
+        <noscript><button type="submit" class="btn">Switch</button></noscript>
+      </form>
+      {{end}}
+    </header>
+    <main>
+      {{if and .Problems (not .Demo)}}
+      <article class="problems" role="alert" data-testid="config-problems">
+        <header><strong>Problem in the User Config</strong></header>
+        <p>These files are not valid. A User whose file is broken keeps the last valid setup until it is fixed.</p>
+        <ul>
+          {{range .Problems}}<li><code>{{.String}}</code></li>
+          {{end}}
+        </ul>
+      </article>
+      {{end}}
+      {{template "content" .}}
+    </main>
+    {{if not .Demo}}
+    <footer class="log-area">
+      <details id="log">
+        <summary>Log</summary>
+        <pre class="log" id="log-lines" hx-get="/log" hx-trigger="toggle from:#log, every 1s [document.getElementById('log').open]" hx-swap="beforeend"
+             hx-vals="js:{cursor: document.getElementById('log-lines').dataset.cursor || ''}"
+             hx-on::before-swap="this.dataset.follow = this.scrollHeight - this.scrollTop - this.clientHeight < 24; if (event.detail.xhr.getResponseHeader('X-Log-Reset')) this.replaceChildren()"
+             hx-on::after-swap="while (this.childElementCount > 500) this.firstElementChild.remove(); if (this.dataset.follow !== 'false') this.scrollTop = this.scrollHeight"
+             hx-on::after-request="const next = event.detail.xhr.getResponseHeader('X-Log-Cursor'); if (next) this.dataset.cursor = next"></pre>
+      </details>
+    </footer>
+    {{end}}
+  </div>
+  {{if .Demo}}
+  <aside class="demo-bar" role="note" data-testid="demo-bar">
+    Demo mode: you can browse and play Episodes, but nothing can be changed.
+    <a href="https://github.com/alex0ptr/aigude" target="_blank" rel="noopener noreferrer">AI Gude on GitHub</a>
+  </aside>
+  {{end}}
+</body>
+</html>{{end}}
