@@ -1,7 +1,7 @@
 {{ ansible_managed | comment }}
 # The route to AI Gude and its sign-in. Whoever signs in with HTTP Basic Auth is the User of AI Gude whose Id is the
 # user name: Traefik puts the name in X-Aigude-User, and AI Gude answers 403 to a name that is no User
-# with a valid setup. X-Aigude-Demo is removed, so nobody can put the interface in Demo Mode (or out of it) from outside.
+# with a valid setup. Whatever X-Aigude-User a client sends is replaced by the name that signed in.
 http:
   routers:
     {{ aigude_traefik_router_name }}:
@@ -9,9 +9,16 @@ http:
       entryPoints:
         - {{ aigude_traefik_entrypoint }}
       service: {{ aigude_traefik_router_name }}
-      # In this order: first the headers of the client are dropped, then the user is asked and set.
+      # In this order: the answers get their security headers, then too many requests are turned away, and only then is
+      # the user asked, so that guessing passwords costs the guesser requests that are counted.
       middlewares:
         - {{ aigude_traefik_router_name }}-headers
+{% if aigude_traefik_rate_limit_average > 0 %}
+        - {{ aigude_traefik_router_name }}-rate-limit
+{% endif %}
+{% if aigude_traefik_in_flight_amount > 0 %}
+        - {{ aigude_traefik_router_name }}-in-flight
+{% endif %}
         - {{ aigude_traefik_router_name }}-auth
       tls:
         certResolver: {{ aigude_traefik_cert_resolver }}
@@ -19,8 +26,25 @@ http:
   middlewares:
     {{ aigude_traefik_router_name }}-headers:
       headers:
-        customRequestHeaders:
-          X-Aigude-Demo: ""
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: no-referrer
+{% if aigude_traefik_content_security_policy | length > 0 %}
+        contentSecurityPolicy: "{{ aigude_traefik_content_security_policy | replace('"', '\\"') }}"
+{% endif %}
+{# Both limits count the requests of one client address, which is what Traefik does without a sourceCriterion. #}
+{% if aigude_traefik_rate_limit_average > 0 %}
+    {{ aigude_traefik_router_name }}-rate-limit:
+      rateLimit:
+        average: {{ aigude_traefik_rate_limit_average }}
+        period: 1s
+        burst: {{ aigude_traefik_rate_limit_burst }}
+{% endif %}
+{% if aigude_traefik_in_flight_amount > 0 %}
+    {{ aigude_traefik_router_name }}-in-flight:
+      inFlightReq:
+        amount: {{ aigude_traefik_in_flight_amount }}
+{% endif %}
     {{ aigude_traefik_router_name }}-auth:
       basicAuth:
         usersFile: {{ aigude_traefik_users_file }}

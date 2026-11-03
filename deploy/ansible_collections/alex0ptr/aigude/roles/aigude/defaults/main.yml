@@ -50,3 +50,14 @@ aigude_traefik_network: web
 aigude_traefik_entrypoint: websecure
 aigude_traefik_cert_resolver: letsencrypt
 aigude_traefik_router_name: aigude
+# Middlewares of the route. Requests per second and client address that are let through, with a burst for the files a
+# page loads at once; 0 turns the limit off. It counts every request, wrong passwords included.
+aigude_traefik_rate_limit_average: 5
+aigude_traefik_rate_limit_burst: 60
+# Requests of one client address that may run at the same time, 0 for no limit.
+aigude_traefik_in_flight_amount: 30
+# Content-Security-Policy of every answer, empty sends none. The pages of AI Gude run inline handlers and HTMX
+# expressions, so scripts need unsafe-inline and unsafe-eval; the policy keeps images, frames and forms on the page's own host.
+aigude_traefik_content_security_policy: >-
+  default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'

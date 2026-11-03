@@ -61,8 +61,16 @@ values against it before the first task. `ansible-doc -t role alex0ptr.aigude.ai
 traefik` the role writes a route that asks for HTTP Basic Auth and tells AI Gude who signed in. Any other proxy must do
 what the section
 [Configure Multiple Users and Authentication](https://github.com/alex0ptr/aigude#configure-multiple-users-and-authentication)
-of the README describes. It sets `X-Aigude-User` to the Id of the User, removes `X-Aigude-Demo` and is the only way to
-the port.
+of the README describes. It sets `X-Aigude-User` to the Id of the User and is the only way to the port.
+
+**The route has four middlewares in front of AI Gude.** `headers` adds `X-Frame-Options`, `nosniff`, a referrer policy
+and a Content-Security-Policy to every answer. `rate-limit` and `in-flight` turn away a client address that sends too
+many requests, before the sign-in is asked. Traefik cannot count wrong passwords only, so the limit bounds the guessing
+but does not stop it. For that, read the access log with fail2ban or CrowdSec. Without further setup a limit by address
+sees only the proxy in front of Traefik, if there is one. The values are the variables `aigude_traefik_rate_limit_average`,
+`aigude_traefik_rate_limit_burst`, `aigude_traefik_in_flight_amount` and
+`aigude_traefik_content_security_policy`. Set a limit to 0, or the policy empty, to leave that middleware out.
+The route never sends `Strict-Transport-Security`.
 
 **The sign-in name is the Id of a User.** Give each entry of `aigude_users` a User Config of the same name in
 `aigude_user_configs`, or the User is answered with 403. The role warns about a sign-in without a file. User Configs are

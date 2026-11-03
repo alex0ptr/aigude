@@ -172,3 +172,25 @@ argument_specs:
         type: str
         default: aigude
         description: Name of the router; the middlewares and the route file are named after it.
+      aigude_traefik_rate_limit_average:
+        type: int
+        default: 5
+        description: >-
+          Requests per second of one client address that the route lets through. 0 turns the limit off.
+          Every request counts, wrong passwords included. Behind another proxy all clients share one address.
+      aigude_traefik_rate_limit_burst:
+        type: int
+        default: 60
+        description: Requests above the average that one client address may send at once, for the files a page loads together.
+      aigude_traefik_in_flight_amount:
+        type: int
+        default: 30
+        description: Requests of one client address that may run at the same time. 0 for no limit.
+      aigude_traefik_content_security_policy:
+        type: str
+        default: >-
+          default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';
+          img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+        description: >-
+          Content-Security-Policy of every answer. Empty sends none. The default lets scripts of the page run as they do
+          today and keeps images, frames and forms on the host of the page.
