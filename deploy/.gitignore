@@ -1,0 +1,2 @@
+# Collections the tools need, installed by `task ansible:deps`
+.collections/

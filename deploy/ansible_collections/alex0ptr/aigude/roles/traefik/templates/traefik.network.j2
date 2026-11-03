@@ -1,0 +1,11 @@
+{{ ansible_managed | comment }}
+# The network Traefik shares with the services it serves. Do not put a service in it that must stay out of reach of
+# the internet, such as the API of a Firecrawl.
+[Network]
+NetworkName={{ traefik_network }}
+{% if traefik_network_subnet | length > 0 %}
+Subnet={{ traefik_network_subnet }}
+{% endif %}
+{% if traefik_network_gateway | length > 0 %}
+Gateway={{ traefik_network_gateway }}
+{% endif %}

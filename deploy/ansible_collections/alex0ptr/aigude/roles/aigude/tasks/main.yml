@@ -1,0 +1,135 @@
+---
+- name: AI Gude | check the settings of the proxy
+  ansible.builtin.assert:
+    that:
+      - aigude_domain | length > 0
+      - aigude_users | length > 0
+      - aigude_users | rejectattr('password', 'defined') | rejectattr('password_hash', 'defined') | list | length == 0
+      - aigude_users | selectattr('password', 'defined') | selectattr('password_hash', 'defined') | list | length == 0
+    fail_msg: >-
+      aigude_proxy traefik needs aigude_domain and at least one entry in aigude_users, each with either
+      password_hash or password.
+    quiet: true
+  when: aigude_proxy == 'traefik'
+
+- name: AI Gude | group
+  ansible.builtin.group:
+    name: "{{ aigude_user }}"
+    gid: "{{ aigude_uid }}"
+    system: true
+
+- name: AI Gude | system user
+  ansible.builtin.user:
+    name: "{{ aigude_user }}"
+    uid: "{{ aigude_uid }}"
+    group: "{{ aigude_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+# The folders belong to the user of the container; the Quadlet does not change owners (no :U), because that would undo
+# what any other tool sets at every start.
+- name: AI Gude | folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ aigude_user }}"
+    group: "{{ aigude_user }}"
+    mode: "0750"
+  loop:
+    - "{{ aigude_config_dir }}"
+    - "{{ aigude_users_dir }}"
+    - "{{ aigude_data_dir }}"
+
+# force: false puts a file in place once; the interface edits User Configs, and a later run must not replace them.
+- name: AI Gude | seed the User Configs
+  ansible.builtin.copy:
+    content: "{{ item.content | default(omit) }}"
+    src: "{{ item.src | default(omit) }}"
+    dest: "{{ aigude_users_dir }}/{{ item.name }}.toml"
+    owner: "{{ aigude_user }}"
+    group: "{{ aigude_user }}"
+    mode: "0640"
+    force: false
+  loop: "{{ aigude_user_configs }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: AI Gude | environment file with the keys
+  ansible.builtin.template:
+    src: aigude.env.j2
+    dest: "{{ aigude_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart aigude
+
+- name: AI Gude | image from an archive
+  ansible.builtin.include_tasks: archive.yml
+  when: aigude_image_archive | length > 0
+
+- name: AI Gude | route and sign-ins at Traefik
+  ansible.builtin.include_tasks: traefik.yml
+  when: aigude_proxy == 'traefik'
+
+- name: AI Gude | quadlet directory
+  ansible.builtin.file:
+    path: "{{ aigude_quadlet_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: AI Gude | check whether the quadlet exists
+  ansible.builtin.stat:
+    path: "{{ aigude_quadlet_dir }}/{{ aigude_container_name }}.container"
+  register: aigude_quadlet_stat
+
+# In check mode a unit that is not there yet cannot be started.
+- name: AI Gude | record whether the quadlet is usable now
+  ansible.builtin.set_fact:
+    aigude_quadlet_ready: "{{ not ansible_check_mode or aigude_quadlet_stat.stat.exists }}"
+
+- name: AI Gude | image quadlet
+  ansible.builtin.template:
+    src: aigude.image.j2
+    dest: "{{ aigude_quadlet_dir }}/{{ aigude_container_name }}.image"
+    owner: root
+    group: root
+    mode: "0644"
+  when: aigude_image_archive | length == 0
+  notify: Restart aigude image
+
+# The image of an archive is not pulled; an image unit left from an earlier run with a registry image would be stale.
+- name: AI Gude | no image quadlet with an archive
+  ansible.builtin.file:
+    path: "{{ aigude_quadlet_dir }}/{{ aigude_container_name }}.image"
+    state: absent
+  when: aigude_image_archive | length > 0
+
+- name: AI Gude | container quadlet
+  ansible.builtin.template:
+    src: aigude.container.j2
+    dest: "{{ aigude_quadlet_dir }}/{{ aigude_container_name }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart aigude
+
+- name: AI Gude | reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  changed_when: false
+
+- name: AI Gude | reset the failed state of the unit
+  ansible.builtin.command: systemctl reset-failed {{ aigude_container_name }}.service
+  changed_when: false
+  failed_when: false
+  when: aigude_quadlet_ready
+
+- name: AI Gude | start the unit
+  ansible.builtin.systemd:
+    name: "{{ aigude_container_name }}.service"
+    state: started
+  when: aigude_quadlet_ready

@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+# Pulled by a oneshot service of its own, so the long pull is not bound by the timeout of the container unit.
+[Image]
+Image={{ firecrawl_image_by_service[item] }}
+
+[Service]
+TimeoutStartSec=900
+Restart=on-failure
+RestartSec=30

@@ -1,0 +1,22 @@
+---
+# Name of the Quadlet network of the Firecrawl. Containers reach each other by container name.
+firecrawl_network: firecrawl
+# Fixed subnet and gateway of the network, for example 10.90.2.0/24 and 10.90.2.1. Needed when firecrawl_manage_ufw is set.
+firecrawl_subnet: ""
+firecrawl_gateway: ""
+
+# Pinned by digest: Firecrawl publishes no version tags. Updates are made by hand, together with
+# hack/firecrawl/compose.yaml.
+firecrawl_api_image: ghcr.io/firecrawl/firecrawl@sha256:6e635de5fef19d3591fbd1081a5ee1394dfe71ef19e108305e74600ecc7fa4b2
+firecrawl_playwright_image: ghcr.io/firecrawl/playwright-service@sha256:637fb8c8399634b02c2179da72566ce11644435e5d93e895bdbde4b1f9b0882a
+firecrawl_postgres_image: ghcr.io/firecrawl/nuq-postgres@sha256:d719b36160eac2fcbe16dc7e7360ddb9c82c40ea5da183d07bf4a755c6a0b2ae
+firecrawl_rabbitmq_image: docker.io/library/rabbitmq:3.13.7-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
+firecrawl_redis_image: docker.io/library/redis:8.10.3-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+
+firecrawl_quadlet_dir: /etc/containers/systemd
+# A systemd target the units belong to, for example cloud.target (the role podman can create it). Empty: multi-user.target.
+firecrawl_target: ""
+# Ports of the API to publish on the host, as for PublishPort=. None by default: the API has no authentication.
+firecrawl_publish: []
+# Open the DNS of the network in ufw (needs firecrawl_subnet). Without it the firewall is not touched.
+firecrawl_manage_ufw: false

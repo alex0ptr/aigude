@@ -1,0 +1,35 @@
+{{ ansible_managed | comment }}
+# The route to AI Gude and its sign-in. Whoever signs in with HTTP Basic Auth is the User of AI Gude whose Id is the
+# user name: Traefik puts the name in X-Aigude-User, and AI Gude answers 403 to a name that is no User
+# with a valid setup. X-Aigude-Demo is removed, so nobody can put the interface in Demo Mode (or out of it) from outside.
+http:
+  routers:
+    {{ aigude_traefik_router_name }}:
+      rule: Host(`{{ aigude_domain }}`)
+      entryPoints:
+        - {{ aigude_traefik_entrypoint }}
+      service: {{ aigude_traefik_router_name }}
+      # In this order: first the headers of the client are dropped, then the user is asked and set.
+      middlewares:
+        - {{ aigude_traefik_router_name }}-headers
+        - {{ aigude_traefik_router_name }}-auth
+      tls:
+        certResolver: {{ aigude_traefik_cert_resolver }}
+
+  middlewares:
+    {{ aigude_traefik_router_name }}-headers:
+      headers:
+        customRequestHeaders:
+          X-Aigude-Demo: ""
+    {{ aigude_traefik_router_name }}-auth:
+      basicAuth:
+        usersFile: {{ aigude_traefik_users_file }}
+        realm: AI Gude
+        headerField: X-Aigude-User
+        removeHeader: true
+
+  services:
+    {{ aigude_traefik_router_name }}:
+      loadBalancer:
+        servers:
+          - url: http://{{ aigude_container_name }}:8080

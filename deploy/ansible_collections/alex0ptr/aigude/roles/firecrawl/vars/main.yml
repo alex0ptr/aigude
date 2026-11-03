@@ -1,0 +1,9 @@
+---
+# The services in the order they start: what the others need comes first.
+firecrawl_services: [redis, playwright, rabbitmq, postgres, api]
+firecrawl_image_by_service:
+  redis: "{{ firecrawl_redis_image }}"
+  playwright: "{{ firecrawl_playwright_image }}"
+  rabbitmq: "{{ firecrawl_rabbitmq_image }}"
+  postgres: "{{ firecrawl_postgres_image }}"
+  api: "{{ firecrawl_api_image }}"

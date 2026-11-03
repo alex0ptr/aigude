@@ -1,0 +1,17 @@
+---
+# AI Gude alone, on 127.0.0.1:8080 of the host, crawling through the hosted Firecrawl.
+# The keys are variables of yours, for example from an Ansible Vault.
+- name: AI Gude without a proxy, with the hosted Firecrawl
+  hosts: aigude
+  become: true
+  vars:
+    aigude_gemini_api_key: "{{ vault_gemini_api_key }}"
+    aigude_firecrawl_url: https://api.firecrawl.dev
+    aigude_firecrawl_api_key: "{{ vault_firecrawl_api_key }}"
+    aigude_time_zone: UTC
+    aigude_user_configs:
+      - name: demo
+        src: users/demo.toml
+  roles:
+    - alex0ptr.aigude.podman
+    - alex0ptr.aigude.aigude

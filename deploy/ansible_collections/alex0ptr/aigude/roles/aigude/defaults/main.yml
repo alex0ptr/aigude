@@ -1,0 +1,52 @@
+---
+# The version of AI Gude that runs, and the image of it. The image is published for every tag v* of the repository.
+# Name another image here, or load an archive with aigude_image_archive, for a version that is not published.
+aigude_version: "0.1.0"
+aigude_image: "ghcr.io/alex0ptr/aigude:{{ aigude_version }}"
+# Path on the controller of an image archive (podman save). It is copied to the host and loaded with podman load; the
+# container then uses aigude_image directly and nothing is pulled. aigude_image names the image inside the archive.
+aigude_image_archive: ""
+# Where the archive is kept on the host.
+aigude_cache_dir: /var/cache/aigude
+
+# Firecrawl: a Firecrawl of your own in the network aigude_firecrawl_network, or the hosted one with an API key.
+aigude_firecrawl_url: http://firecrawl-api:3002
+aigude_firecrawl_api_key: ""
+# Quadlet networks the container joins, by name. Empty: the default network of Podman.
+aigude_networks: []
+# The network of the role firecrawl. When it is in aigude_networks, AI Gude wants firecrawl-api.service.
+aigude_firecrawl_network: firecrawl
+
+# Ports to publish, as for PublishPort=. Loopback only without a proxy: AI Gude has no sign-in of its own.
+aigude_publish_ports: "{{ [] if aigude_proxy == 'traefik' else ['127.0.0.1:8080:8080'] }}"
+# More settings of the service, key as in hack/aigude.toml, written as AIGUDE_<KEY> in the unit.
+aigude_settings: {}
+aigude_time_zone: UTC
+# User Configs to put in place, each with a name (the User Id) and its text as content or the path of a file on the
+# controller as src. A file that exists is never replaced: the interface edits them.
+aigude_user_configs: []
+
+aigude_uid: 10001
+aigude_user: aigude
+aigude_config_dir: /etc/aigude
+aigude_data_dir: /var/lib/aigude
+aigude_env_file: /etc/aigude.env
+aigude_container_name: aigude
+aigude_quadlet_dir: /etc/containers/systemd
+# A systemd target the unit belongs to, for example cloud.target (the role podman can create it). Empty: multi-user.target.
+aigude_target: ""
+
+# A reverse proxy in front: none, or traefik (the role traefik, or a Traefik of your own that reads aigude_traefik_dynamic_dir).
+aigude_proxy: none
+aigude_domain: ""
+# Sign-ins at the proxy: the name is the Id of a User, the password is given as bcrypt hash or as clear text.
+aigude_users: []
+aigude_install_htpasswd_dependencies: true
+aigude_traefik_dynamic_dir: /etc/traefik/dynamic
+aigude_traefik_users_file: /etc/traefik/aigude-users
+# Service restarted when the sign-ins change, because Traefik reads their file only when it loads the route. Empty: none.
+aigude_traefik_service: traefik.service
+aigude_traefik_network: web
+aigude_traefik_entrypoint: websecure
+aigude_traefik_cert_resolver: letsencrypt
+aigude_traefik_router_name: aigude

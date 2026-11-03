@@ -1,0 +1,22 @@
+---
+namespace: alex0ptr
+name: aigude
+version: 0.1.0
+readme: README.md
+authors:
+  - alex0ptr
+description: Installs AI Gude, and optionally Traefik and a Firecrawl of its own, on a Linux host as rootful Podman Quadlets.
+license:
+  - AGPL-3.0-or-later
+repository: https://github.com/alex0ptr/aigude
+documentation: https://github.com/alex0ptr/aigude/tree/main/deploy/ansible_collections/alex0ptr/aigude
+issues: https://github.com/alex0ptr/aigude/issues
+tags:
+  - infrastructure
+  - linux
+  - podman
+  - quadlet
+  - traefik
+  - firecrawl
+dependencies:
+  community.general: ">=9.0.0"

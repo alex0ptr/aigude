@@ -1,0 +1,25 @@
+---
+# Both handlers run only when the unit existed before: on a first install the task that starts the unit does the work.
+- name: Restart aigude
+  ansible.builtin.systemd:
+    name: "{{ aigude_container_name }}.service"
+    state: restarted
+  when: aigude_quadlet_stat.stat.exists
+
+# Traefik loads the file of the sign-ins only together with the route. Empty aigude_traefik_service leaves the restart
+# to whoever runs the Traefik. In check mode the unit may not exist yet.
+- name: Restart traefik for sign-ins
+  ansible.builtin.systemd:
+    name: "{{ aigude_traefik_service }}"
+    state: restarted
+  when: aigude_traefik_service | length > 0
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# A restart of the image unit pulls the image again and restarts the container that requires it. On a host that ran
+# before without image units the unit is new, and in check mode it does not exist yet, so an error is ignored there.
+- name: Restart aigude image
+  ansible.builtin.systemd:
+    name: "{{ aigude_container_name }}-image.service"
+    state: restarted
+  when: aigude_quadlet_stat.stat.exists
+  ignore_errors: "{{ ansible_check_mode }}"

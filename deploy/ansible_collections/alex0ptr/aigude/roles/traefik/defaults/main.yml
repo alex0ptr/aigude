@@ -1,0 +1,31 @@
+---
+# Pinned by digest; updates are made by hand.
+traefik_image: docker.io/library/traefik:v3.7.17@sha256:30ff62491aacdb862ceb8c9edcf2627da638d7deafdd4b6dab32fe34f8aa3e90
+traefik_container_name: traefik
+# Folder with traefik.yml and the routes. The container sees it under the same path, read only.
+traefik_config_dir: /etc/traefik
+traefik_dynamic_dir: "{{ traefik_config_dir }}/dynamic"
+# Folder with the certificates of the ACME server.
+traefik_data_dir: /var/lib/traefik
+
+# The e-mail address the ACME server may send expiry notices to.
+# traefik_acme_email: (required)
+# Use the staging server of Let's Encrypt. Try with it first: the real server limits failed attempts.
+traefik_acme_staging: false
+traefik_web_entrypoint: web
+traefik_websecure_entrypoint: websecure
+traefik_cert_resolver: letsencrypt
+
+# The network Traefik shares with the services it serves, with an optional fixed subnet and gateway.
+traefik_network: web
+traefik_network_subnet: ""
+traefik_network_gateway: ""
+# Ports of the host that are published to port 80 and 443 of the container.
+traefik_http_port: 80
+traefik_https_port: 443
+
+traefik_quadlet_dir: /etc/containers/systemd
+# A systemd target the unit belongs to, for example cloud.target (the role podman can create it). Empty: multi-user.target.
+traefik_target: ""
+# Open the ports in ufw (needs traefik_network_subnet). Without it the firewall is not touched.
+traefik_manage_ufw: false

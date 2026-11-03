@@ -1,0 +1,174 @@
+---
+argument_specs:
+  main:
+    short_description: AI Gude as a Quadlet, with a route in Traefik if wanted
+    description:
+      - Creates the system user, the folders and the environment file, puts the image in place, installs the Quadlet of AI Gude and starts it.
+      - Without a proxy the port is published on 127.0.0.1 only. AI Gude has no sign-in of its own.
+      - With aigude_proxy set to traefik the role writes the route and the sign-ins that tell AI Gude who is asking.
+    options:
+      aigude_version:
+        type: str
+        default: "0.1.0"
+        description: Version of AI Gude, the tag of the default image.
+      aigude_image:
+        type: str
+        default: "ghcr.io/alex0ptr/aigude:{{ aigude_version }}"
+        description: Image to run. Set it to use another registry or a version that is not published yet.
+      aigude_image_archive:
+        type: path
+        default: ""
+        description: >-
+          Path on the controller of an image archive made with C(podman save). It is copied to the host and loaded with C(podman load);
+          the container then names aigude_image directly and nothing is pulled.
+      aigude_cache_dir:
+        type: path
+        default: /var/cache/aigude
+        description: Folder on the host that keeps the image archive.
+      aigude_gemini_api_key:
+        type: str
+        required: true
+        no_log: true
+        description: API key of Gemini. It is written to the environment file only.
+      aigude_firecrawl_url:
+        type: str
+        default: http://firecrawl-api:3002
+        description: >-
+          Address of the Firecrawl. The default is a Firecrawl of your own in the network aigude_firecrawl_network;
+          the hosted one is C(https://api.firecrawl.dev).
+      aigude_firecrawl_api_key:
+        type: str
+        default: ""
+        no_log: true
+        description: API key of the hosted Firecrawl. Written to the environment file only when it is not empty.
+      aigude_networks:
+        type: list
+        elements: str
+        default: []
+        description: Names of the Quadlet networks the container joins. Empty means the default network of Podman.
+      aigude_firecrawl_network:
+        type: str
+        default: firecrawl
+        description: Name of the network of the role firecrawl. When it is in aigude_networks, the unit wants firecrawl-api.service.
+      aigude_publish_ports:
+        type: list
+        elements: str
+        description: Ports to publish, written as for C(PublishPort=). The default is C(127.0.0.1:8080:8080), and none with aigude_proxy traefik.
+      aigude_settings:
+        type: dict
+        default: {}
+        description: >-
+          More settings of the service. A key such as C(episode_retention) becomes C(AIGUDE_EPISODE_RETENTION) in the unit.
+          The listen address, the Firecrawl address and the time zone are set by the role and can be replaced here; the two folders cannot.
+      aigude_time_zone:
+        type: str
+        default: UTC
+        description: Time zone of the container and of the schedules of AI Gude.
+      aigude_user_configs:
+        type: list
+        elements: dict
+        default: []
+        description: User Configs to put in place. A file that exists is never replaced.
+        options:
+          name:
+            type: str
+            required: true
+            description: Id of the User, the name of the file without C(.toml).
+          content:
+            type: str
+            description: Text of the file. Give content or src.
+          src:
+            type: path
+            description: Path on the controller of the file. Give content or src.
+      aigude_uid:
+        type: int
+        default: 10001
+        description: Id of the user and the group that run the service. It is the user of the image.
+      aigude_user:
+        type: str
+        default: aigude
+        description: Name of the system user and group.
+      aigude_config_dir:
+        type: path
+        default: /etc/aigude
+        description: Folder that is mounted as the working directory; its C(users) folder holds the User Configs.
+      aigude_data_dir:
+        type: path
+        default: /var/lib/aigude
+        description: Folder with the database and the audio files. Back it up.
+      aigude_env_file:
+        type: path
+        default: /etc/aigude.env
+        description: Environment file with the keys. Owned by root, mode 0600.
+      aigude_container_name:
+        type: str
+        default: aigude
+        description: Name of the container and of its Quadlet files and service.
+      aigude_quadlet_dir:
+        type: path
+        default: /etc/containers/systemd
+        description: Folder of the Quadlet files.
+      aigude_target:
+        type: str
+        default: ""
+        description: Systemd target the unit belongs to, for example C(cloud.target). Empty means C(multi-user.target).
+      aigude_proxy:
+        type: str
+        default: none
+        choices: [none, traefik]
+        description: The proxy in front of AI Gude. With traefik the role writes a route, sign-ins and joins the network of Traefik.
+      aigude_domain:
+        type: str
+        default: ""
+        description: Host name of the route. Required with aigude_proxy traefik.
+      aigude_users:
+        type: list
+        elements: dict
+        default: []
+        no_log: true
+        description: Sign-ins at the proxy. Required with aigude_proxy traefik. The name is the Id of a User; Users without a User Config are answered with 403.
+        options:
+          name:
+            type: str
+            required: true
+            description: Id of the User.
+          password_hash:
+            type: str
+            description: Bcrypt hash of the password. Give password_hash or password.
+          password:
+            type: str
+            description: Password in clear text, hashed on the host. Give password_hash or password.
+      aigude_install_htpasswd_dependencies:
+        type: bool
+        default: true
+        description: Install python3-passlib and python3-bcrypt on the host, which hashing clear text passwords needs.
+      aigude_traefik_dynamic_dir:
+        type: path
+        default: /etc/traefik/dynamic
+        description: Folder Traefik reads its routes from.
+      aigude_traefik_users_file:
+        type: path
+        default: /etc/traefik/aigude-users
+        description: File with the sign-ins. It must be inside the configuration folder that Traefik mounts.
+      aigude_traefik_service:
+        type: str
+        default: traefik.service
+        description: >-
+          Systemd service that is restarted when a sign-in is added or changed, because Traefik reads the file of the
+          sign-ins only when it loads the route and does not watch it. Empty means no restart; do it yourself then.
+      aigude_traefik_network:
+        type: str
+        default: web
+        description: Name of the network that Traefik and AI Gude share.
+      aigude_traefik_entrypoint:
+        type: str
+        default: websecure
+        description: Entrypoint of Traefik the route listens on.
+      aigude_traefik_cert_resolver:
+        type: str
+        default: letsencrypt
+        description: Certificate resolver of Traefik for the route.
+      aigude_traefik_router_name:
+        type: str
+        default: aigude
+        description: Name of the router; the middlewares and the route file are named after it.

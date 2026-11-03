@@ -1,0 +1,34 @@
+---
+# AI Gude behind Traefik with HTTPS and a sign-in, with a Firecrawl of its own. Traefik and the Firecrawl are on
+# different networks: the API of the Firecrawl has no authentication and fetches any address it is given, so Traefik must
+# not reach it.
+# Try with traefik_acme_staging: true first, then set it to false and run again.
+- name: AI Gude behind Traefik, with a Firecrawl of its own
+  hosts: aigude
+  become: true
+  vars:
+    traefik_acme_email: you@example.org
+    traefik_acme_staging: true
+    # With ufw on the host, give both networks a fixed subnet and let the roles open the ports and the DNS:
+    # traefik_network_subnet: 10.90.1.0/24
+    # traefik_network_gateway: 10.90.1.1
+    # traefik_manage_ufw: true
+    # firecrawl_subnet: 10.90.2.0/24
+    # firecrawl_gateway: 10.90.2.1
+    # firecrawl_manage_ufw: true
+    aigude_proxy: traefik
+    aigude_domain: aigude.example.org
+    aigude_networks: [firecrawl]
+    aigude_gemini_api_key: "{{ vault_gemini_api_key }}"
+    aigude_time_zone: UTC
+    aigude_users:
+      - name: demo
+        password_hash: "{{ vault_alex_password_hash }}"
+    aigude_user_configs:
+      - name: demo
+        src: users/demo.toml
+  roles:
+    - alex0ptr.aigude.podman
+    - alex0ptr.aigude.traefik
+    - alex0ptr.aigude.firecrawl
+    - alex0ptr.aigude.aigude

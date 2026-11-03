@@ -1,0 +1,30 @@
+---
+# AI Gude behind Traefik with HTTPS and a sign-in, crawling through the hosted Firecrawl. The names of the sign-ins are
+# the Ids of Users; each needs a User Config of the same name.
+# Try with traefik_acme_staging: true first, then set it to false and run again.
+- name: AI Gude behind Traefik, with the hosted Firecrawl
+  hosts: aigude
+  become: true
+  vars:
+    traefik_acme_email: you@example.org
+    traefik_acme_staging: true
+    # With ufw on the host, give the network a fixed subnet and let the role open the ports:
+    # traefik_network_subnet: 10.90.1.0/24
+    # traefik_network_gateway: 10.90.1.1
+    # traefik_manage_ufw: true
+    aigude_proxy: traefik
+    aigude_domain: aigude.example.org
+    aigude_gemini_api_key: "{{ vault_gemini_api_key }}"
+    aigude_firecrawl_url: https://api.firecrawl.dev
+    aigude_firecrawl_api_key: "{{ vault_firecrawl_api_key }}"
+    aigude_time_zone: UTC
+    aigude_users:
+      - name: demo
+        password_hash: "{{ vault_alex_password_hash }}"
+    aigude_user_configs:
+      - name: demo
+        src: users/demo.toml
+  roles:
+    - alex0ptr.aigude.podman
+    - alex0ptr.aigude.traefik
+    - alex0ptr.aigude.aigude

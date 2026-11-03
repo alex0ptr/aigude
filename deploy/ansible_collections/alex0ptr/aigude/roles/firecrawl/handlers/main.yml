@@ -1,0 +1,18 @@
+---
+# Both handlers run only when units existed before: on a first install the task that starts the units does the work.
+- name: Restart firecrawl
+  ansible.builtin.systemd:
+    name: "firecrawl-{{ item }}.service"
+    state: restarted
+  loop: "{{ firecrawl_services }}"
+  when: firecrawl_quadlet_stat.results | selectattr('stat.exists') | list | length > 0
+
+# A restart of an image unit pulls the image again and restarts the container that requires it. On a host that ran
+# before without image units the unit is new, and in check mode it does not exist yet, so an error is ignored there.
+- name: Restart firecrawl images
+  ansible.builtin.systemd:
+    name: "firecrawl-{{ item }}-image.service"
+    state: restarted
+  loop: "{{ firecrawl_services }}"
+  when: firecrawl_quadlet_stat.results | selectattr('stat.exists') | list | length > 0
+  ignore_errors: "{{ ansible_check_mode }}"

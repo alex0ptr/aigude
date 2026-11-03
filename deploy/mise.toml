@@ -1,0 +1,7 @@
+# Tools for the Ansible collection under deploy/. They are loaded only inside this folder, the tools of the
+# repository root (Go, task, ffmpeg) stay as they are. Run them from the root with `mise exec -C deploy -- <command>`;
+# the Taskfile does that.
+[tools]
+uv = "0.13.6"
+"pipx:ansible-core" = "2.21.5"
+"pipx:ansible-lint" = "26.10.1"

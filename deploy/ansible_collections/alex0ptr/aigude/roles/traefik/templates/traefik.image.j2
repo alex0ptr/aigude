@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+# Pulled by a oneshot service of its own. The image is fixed by traefik_image, nothing updates it by itself.
+[Image]
+Image={{ traefik_image }}
+
+[Service]
+TimeoutStartSec=900
+Restart=on-failure
+RestartSec=30

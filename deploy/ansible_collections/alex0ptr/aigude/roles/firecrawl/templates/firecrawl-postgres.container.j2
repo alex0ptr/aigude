@@ -1,0 +1,31 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Firecrawl: Postgres of its queue
+{% if firecrawl_target | length > 0 %}
+PartOf={{ firecrawl_target }}
+After={{ firecrawl_target }}
+{% endif %}
+
+[Container]
+ContainerName=firecrawl-postgres
+Image=firecrawl-postgres.image
+Network={{ firecrawl_network }}.network
+# Reachable only inside the network, no published port; the password is the one of the upstream compose file.
+Environment=POSTGRES_USER=postgres
+Environment=POSTGRES_PASSWORD=postgres
+Environment=POSTGRES_DB=postgres
+HealthCmd=pg_isready -U postgres -d postgres
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=5s
+# The unit counts as started once the container is healthy, which is what the units that require it wait for.
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy={{ firecrawl_target or 'multi-user.target' }}

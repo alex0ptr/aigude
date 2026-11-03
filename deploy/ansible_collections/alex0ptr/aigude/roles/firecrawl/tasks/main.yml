@@ -1,0 +1,82 @@
+---
+- name: Firecrawl | subnet for the firewall rules
+  ansible.builtin.assert:
+    that: firecrawl_subnet | length > 0
+    fail_msg: firecrawl_manage_ufw needs firecrawl_subnet, because the rules name the subnet of the network.
+    quiet: true
+  when: firecrawl_manage_ufw
+
+- name: Firecrawl | quadlet directory
+  ansible.builtin.file:
+    path: "{{ firecrawl_quadlet_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Firecrawl | check which quadlets already exist
+  ansible.builtin.stat:
+    path: "{{ firecrawl_quadlet_dir }}/firecrawl-{{ item }}.container"
+  loop: "{{ firecrawl_services }}"
+  register: firecrawl_quadlet_stat
+
+# In check mode a unit that is not there yet cannot be started.
+- name: Firecrawl | record whether the quadlets are usable now
+  ansible.builtin.set_fact:
+    firecrawl_quadlets_ready: >-
+      {{ not ansible_check_mode or
+      (firecrawl_quadlet_stat.results | selectattr('stat.exists') | list | length) == (firecrawl_services | length) }}
+
+- name: Firecrawl | network quadlet
+  ansible.builtin.template:
+    src: firecrawl.network.j2
+    dest: "{{ firecrawl_quadlet_dir }}/{{ firecrawl_network }}.network"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart firecrawl
+
+- name: Firecrawl | image quadlets
+  ansible.builtin.template:
+    src: firecrawl.image.j2
+    dest: "{{ firecrawl_quadlet_dir }}/firecrawl-{{ item }}.image"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ firecrawl_services }}"
+  notify: Restart firecrawl images
+
+- name: Firecrawl | container quadlets
+  ansible.builtin.template:
+    src: "firecrawl-{{ item }}.container.j2"
+    dest: "{{ firecrawl_quadlet_dir }}/firecrawl-{{ item }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ firecrawl_services }}"
+  notify: Restart firecrawl
+
+- name: Firecrawl | ufw rules
+  ansible.builtin.include_tasks: ufw.yml
+  when: firecrawl_manage_ufw
+
+- name: Firecrawl | reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  changed_when: false
+
+# A unit that failed several times in a row stays blocked by the start limit of systemd until its failed state is reset.
+- name: Firecrawl | reset the failed state of the units
+  ansible.builtin.command: systemctl reset-failed firecrawl-{{ item }}.service
+  loop: "{{ firecrawl_services }}"
+  changed_when: false
+  failed_when: false
+  when: firecrawl_quadlets_ready
+
+# The list is in the order the units depend on each other. The first start pulls the images, which takes a while.
+- name: Firecrawl | start the units
+  ansible.builtin.systemd:
+    name: "firecrawl-{{ item }}.service"
+    state: started
+  loop: "{{ firecrawl_services }}"
+  when: firecrawl_quadlets_ready

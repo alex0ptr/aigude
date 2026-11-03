@@ -164,10 +164,31 @@ tasks:
     cmds:
       - goreleaser release --clean
 
+  ansible:deps:
+    desc: Install the Ansible tools of deploy/mise.toml and the collections they need into deploy/.collections
+    env:
+      ANSIBLE_COLLECTIONS_PATH: '{{.ROOT_DIR}}/deploy/.collections'
+    cmds:
+      - mise trust deploy/mise.toml
+      # uv first: mise installs the tools of one folder side by side and the others need uv to be there.
+      - mise -C deploy install uv
+      - mise -C deploy install
+      - mise exec -C deploy -- ansible-galaxy collection install community.general -p'{{.ROOT_DIR}}/deploy/.collections'
+
+  ansible:lint:
+    desc: Lint the Ansible collection under deploy/ and syntax-check its example playbooks (tools from deploy/mise.toml)
+    deps: [ansible:deps]
+    env:
+      ANSIBLE_COLLECTIONS_PATH: '{{.ROOT_DIR}}/deploy:{{.ROOT_DIR}}/deploy/.collections'
+    cmds:
+      - mise exec -C deploy -- ansible-lint ansible_collections/alex0ptr/aigude
+      - mise exec -C deploy/ansible_collections/alex0ptr/aigude -- sh -c 'for playbook in playbooks/*.yml; do ansible-playbook --syntax-check -i localhost, "$playbook" || exit 1; done'
+
   check:
-    desc: Format, vet, check architecture, and test everything
+    desc: Format, vet, check architecture, lint the Ansible collection, and test everything
     cmds:
       - task: fmt
       - task: vet
       - task: arch
+      - task: ansible:lint
       - task: test

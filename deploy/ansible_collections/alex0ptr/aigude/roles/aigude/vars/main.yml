@@ -1,0 +1,19 @@
+---
+aigude_users_dir: "{{ aigude_config_dir }}/users"
+aigude_archive_file: "{{ aigude_cache_dir }}/image.tar"
+aigude_all_networks: >-
+  {{ (aigude_networks + ([aigude_traefik_network] if aigude_proxy == 'traefik' else [])) | unique }}
+aigude_wants_firecrawl: "{{ aigude_firecrawl_network in aigude_networks }}"
+aigude_unit_after: >-
+  {{ ([aigude_target] | select | list) + (['firecrawl-api.service'] if aigude_wants_firecrawl else []) }}
+aigude_settings_environment: >-
+  {{ dict(aigude_settings.keys() | map('upper') | map('regex_replace', '^', 'AIGUDE_') | zip(aigude_settings.values())) }}
+# What the unit sets; aigude_settings may replace every value but the paths the mounts depend on.
+aigude_environment: >-
+  {{ {'AIGUDE_LISTEN_ADDR': '0.0.0.0:8080',
+      'AIGUDE_FIRECRAWL_URL': aigude_firecrawl_url,
+      'AIGUDE_TIME_ZONE': aigude_time_zone}
+     | combine(aigude_settings_environment)
+     | combine({'AIGUDE_USERS_DIR': '/etc/aigude/users', 'AIGUDE_DATA_DIR': '/var/lib/aigude/data'}) }}
+aigude_password_users: "{{ aigude_users | selectattr('password', 'defined') | list }}"
+aigude_hash_users: "{{ aigude_users | selectattr('password_hash', 'defined') | list }}"

@@ -1,0 +1,81 @@
+---
+argument_specs:
+  main:
+    short_description: Traefik as the reverse proxy in front of AI Gude, with certificates from an ACME server
+    description:
+      - Installs Traefik as a Quadlet that reads its routes from a folder; every service puts its own route file there.
+      - Port 80 must be reachable from the internet for the HTTP challenge.
+    options:
+      traefik_image:
+        type: str
+        description: Image of Traefik, pinned by digest. The default is set in the role.
+      traefik_container_name:
+        type: str
+        default: traefik
+        description: Name of the container and of its Quadlet files and service.
+      traefik_config_dir:
+        type: path
+        default: /etc/traefik
+        description: Folder with C(traefik.yml) and the routes, mounted read only under the same path.
+      traefik_dynamic_dir:
+        type: path
+        default: "{{ traefik_config_dir }}/dynamic"
+        description: Folder Traefik reads its routes from. It must be inside traefik_config_dir.
+      traefik_data_dir:
+        type: path
+        default: /var/lib/traefik
+        description: Folder with the certificates. Losing it means asking for new ones, which is limited.
+      traefik_acme_email:
+        type: str
+        required: true
+        description: E-mail address for the ACME server.
+      traefik_acme_staging:
+        type: bool
+        default: false
+        description: Use the staging server of Let's Encrypt. Staging and production keep their certificates in separate files.
+      traefik_web_entrypoint:
+        type: str
+        default: web
+        description: Name of the entrypoint on port 80 that redirects to the secure one.
+      traefik_websecure_entrypoint:
+        type: str
+        default: websecure
+        description: Name of the entrypoint on port 443.
+      traefik_cert_resolver:
+        type: str
+        default: letsencrypt
+        description: Name of the certificate resolver.
+      traefik_network:
+        type: str
+        default: web
+        description: Name of the Quadlet network Traefik shares with the services it serves.
+      traefik_network_subnet:
+        type: str
+        default: ""
+        description: Fixed subnet of the network, for example C(10.90.1.0/24). Needed when traefik_manage_ufw is set.
+      traefik_network_gateway:
+        type: str
+        default: ""
+        description: Gateway of the fixed subnet, for example C(10.90.1.1). Used only together with traefik_network_subnet.
+      traefik_http_port:
+        type: int
+        default: 80
+        description: Port of the host that is published to port 80 of the container.
+      traefik_https_port:
+        type: int
+        default: 443
+        description: Port of the host that is published to port 443 of the container.
+      traefik_quadlet_dir:
+        type: path
+        default: /etc/containers/systemd
+        description: Folder of the Quadlet files.
+      traefik_target:
+        type: str
+        default: ""
+        description: Systemd target the unit belongs to, for example C(cloud.target). Empty means C(multi-user.target).
+      traefik_manage_ufw:
+        type: bool
+        default: false
+        description: >-
+          Open the ports and the DNS of the network in ufw. Published ports run through FORWARD, not INPUT, so a rule for the subnet
+          of the network is needed; traefik_network_subnet must be set. With false the firewall is not touched.

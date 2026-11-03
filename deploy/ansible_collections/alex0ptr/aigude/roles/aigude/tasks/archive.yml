@@ -1,0 +1,31 @@
+---
+- name: AI Gude | folder of the image archive
+  ansible.builtin.file:
+    path: "{{ aigude_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: AI Gude | copy the image archive
+  ansible.builtin.copy:
+    src: "{{ aigude_image_archive }}"
+    dest: "{{ aigude_archive_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  register: aigude_archive_copy
+
+# Read only, so it runs in check mode too. Without Podman the answer is "no".
+- name: AI Gude | check whether the image is loaded
+  ansible.builtin.command: podman image exists {{ aigude_image }}
+  register: aigude_image_exists
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: AI Gude | load the image
+  ansible.builtin.command: podman load --input {{ aigude_archive_file }}
+  changed_when: true
+  when: aigude_archive_copy.changed or aigude_image_exists.rc != 0
+  notify: Restart aigude

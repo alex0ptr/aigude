@@ -1,0 +1,16 @@
+---
+# Both handlers run only when the unit existed before: on a first install the task that starts the unit does the work.
+- name: Restart traefik
+  ansible.builtin.systemd:
+    name: "{{ traefik_container_name }}.service"
+    state: restarted
+  when: traefik_quadlet_stat.stat.exists
+
+# A restart of the image unit pulls the image again and restarts the container that requires it. On a host that ran
+# before without image units the unit is new, and in check mode it does not exist yet, so an error is ignored there.
+- name: Restart traefik image
+  ansible.builtin.systemd:
+    name: "{{ traefik_container_name }}-image.service"
+    state: restarted
+  when: traefik_quadlet_stat.stat.exists
+  ignore_errors: "{{ ansible_check_mode }}"

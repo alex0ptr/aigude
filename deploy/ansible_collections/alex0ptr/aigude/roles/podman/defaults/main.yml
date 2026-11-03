@@ -1,0 +1,9 @@
+---
+# present installs Podman once; latest also moves it to the newest version of the distribution. A package update does
+# not restart running containers.
+podman_package_state: present
+# The oldest Podman the Quadlets of this collection need: .image units came with 4.8.
+podman_min_version: "4.8"
+podman_quadlet_dir: /etc/containers/systemd
+# A systemd target the other roles can put their units in, for example cloud.target. Empty: none is created.
+podman_target: ""

@@ -1,0 +1,21 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Firecrawl: Redis
+{% if firecrawl_target | length > 0 %}
+PartOf={{ firecrawl_target }}
+After={{ firecrawl_target }}
+{% endif %}
+
+[Container]
+ContainerName=firecrawl-redis
+Image=firecrawl-redis.image
+Network={{ firecrawl_network }}.network
+Exec=redis-server --bind 0.0.0.0
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy={{ firecrawl_target or 'multi-user.target' }}

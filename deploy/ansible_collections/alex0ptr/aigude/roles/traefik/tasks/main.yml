@@ -1,0 +1,88 @@
+---
+- name: Traefik | subnet for the firewall rules
+  ansible.builtin.assert:
+    that: traefik_network_subnet | length > 0
+    fail_msg: traefik_manage_ufw needs traefik_network_subnet, because the rules name the subnet of the network.
+    quiet: true
+  when: traefik_manage_ufw
+
+- name: Traefik | ufw rules
+  ansible.builtin.include_tasks: ufw.yml
+  when: traefik_manage_ufw
+
+- name: Traefik | folders
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ traefik_config_dir }}", mode: "0755" }
+    # Every service puts its route here; Traefik watches the folder.
+    - { path: "{{ traefik_dynamic_dir }}", mode: "0755" }
+    - { path: "{{ traefik_data_dir }}", mode: "0700" }
+    - { path: "{{ traefik_quadlet_dir }}", mode: "0755" }
+
+- name: Traefik | static configuration
+  ansible.builtin.template:
+    src: traefik.yml.j2
+    dest: "{{ traefik_config_dir }}/traefik.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart traefik
+
+- name: Traefik | check whether the quadlet exists
+  ansible.builtin.stat:
+    path: "{{ traefik_quadlet_dir }}/{{ traefik_container_name }}.container"
+  register: traefik_quadlet_stat
+
+# In check mode a unit that is not there yet cannot be started.
+- name: Traefik | record whether the quadlet is usable now
+  ansible.builtin.set_fact:
+    traefik_quadlet_ready: "{{ not ansible_check_mode or traefik_quadlet_stat.stat.exists }}"
+
+- name: Traefik | network quadlet
+  ansible.builtin.template:
+    src: traefik.network.j2
+    dest: "{{ traefik_quadlet_dir }}/{{ traefik_network }}.network"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart traefik
+
+- name: Traefik | image quadlet
+  ansible.builtin.template:
+    src: traefik.image.j2
+    dest: "{{ traefik_quadlet_dir }}/{{ traefik_container_name }}.image"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart traefik image
+
+- name: Traefik | container quadlet
+  ansible.builtin.template:
+    src: traefik.container.j2
+    dest: "{{ traefik_quadlet_dir }}/{{ traefik_container_name }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart traefik
+
+- name: Traefik | reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  changed_when: false
+
+- name: Traefik | reset the failed state of the unit
+  ansible.builtin.command: systemctl reset-failed {{ traefik_container_name }}.service
+  changed_when: false
+  failed_when: false
+  when: traefik_quadlet_ready
+
+- name: Traefik | start the unit
+  ansible.builtin.systemd:
+    name: "{{ traefik_container_name }}.service"
+    state: started
+  when: traefik_quadlet_ready

@@ -1,0 +1,16 @@
+---
+# AI Gude on 127.0.0.1:8080 of the host, with a Firecrawl of its own that only AI Gude can reach.
+- name: AI Gude without a proxy, with a Firecrawl of its own
+  hosts: aigude
+  become: true
+  vars:
+    aigude_gemini_api_key: "{{ vault_gemini_api_key }}"
+    aigude_networks: [firecrawl]
+    aigude_time_zone: UTC
+    aigude_user_configs:
+      - name: demo
+        src: users/demo.toml
+  roles:
+    - alex0ptr.aigude.podman
+    - alex0ptr.aigude.firecrawl
+    - alex0ptr.aigude.aigude

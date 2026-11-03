@@ -276,7 +276,36 @@ the Episodes of the demo User come from its Schedules. Create it like any User, 
 
 ### Install AI Gude on a Linux VM
 
-I'm deploying with Ansible and systemd quadlets and will publish the playbook when it is ready.
+> **The whole Ansible part is vibe coded.** An AI assistant wrote the collection. The roles were run on a host and
+> worked, but nobody has reviewed the code. Be especially careful. Read the roles before you run them, try them with
+> `ansible-playbook --check` first, and use a host that you can set up again. The only automatic check is
+> `ansible-lint`.
+
+The Ansible collection [alex0ptr.aigude](deploy/ansible_collections/alex0ptr/aigude/README.md) installs AI Gude on a
+Linux host with rootful Podman, as systemd quadlets. It can also install Traefik with HTTPS and a sign-in in front of it,
+and a Firecrawl of your own. The host needs Ubuntu 24.04, Debian 13 or another system with Podman 4.8 or newer.
+
+1. Add the collection to the `requirements.yml` of your Ansible project and install it:
+
+   ```yaml
+   collections:
+     - name: https://github.com/alex0ptr/aigude.git#/deploy/ansible_collections/alex0ptr/aigude
+       type: git
+       version: main
+   ```
+
+   ```bash
+   ansible-galaxy collection install -r requirements.yml
+   ```
+
+2. Copy the example playbook that fits from
+   [deploy/ansible_collections/alex0ptr/aigude/playbooks/](deploy/ansible_collections/alex0ptr/aigude/playbooks/). There
+   is one for each combination of no proxy or Traefik, and the hosted Firecrawl or one of your own.
+3. Set your host group and your values in it. The Gemini key and the address of the Firecrawl are the least it needs.
+4. Run it with `ansible-playbook`.
+
+Without a proxy AI Gude then listens on `127.0.0.1:8080` of the host. The README of the collection lists the variables
+and says what to know about the image, the networks and the firewall.
 
 ## License
 

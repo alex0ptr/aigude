@@ -1,0 +1,71 @@
+---
+- name: Podman | packages
+  ansible.builtin.package:
+    name:
+      - podman
+      - netavark
+      - aardvark-dns
+    state: "{{ podman_package_state }}"
+
+# Read only, so it runs in check mode too. If Podman is not installed yet there, the call fails and that is no error.
+- name: Podman | read the version
+  ansible.builtin.command: podman --version
+  register: podman_version_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Podman | record whether Podman is installed
+  ansible.builtin.set_fact:
+    podman_installed: "{{ podman_version_output.rc == 0 }}"
+
+- name: Podman | check the version
+  ansible.builtin.assert:
+    that: podman_version_output.stdout.split()[2] is version(podman_min_version, '>=')
+    fail_msg: >-
+      Podman {{ podman_version_output.stdout.split()[2] }} is older than {{ podman_min_version }}, which the Quadlets of
+      this collection need (.image units). Ubuntu 24.04 and Debian 13 are new enough.
+    quiet: true
+  when: podman_installed
+
+- name: Podman | quadlet directory
+  ansible.builtin.file:
+    path: "{{ podman_quadlet_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Podman | check whether the target exists
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ podman_target }}"
+  register: podman_target_stat
+  when: podman_target | length > 0
+
+# In check mode a target that is not there yet cannot be started.
+- name: Podman | record whether the target is usable now
+  ansible.builtin.set_fact:
+    podman_target_ready: "{{ not ansible_check_mode or podman_target_stat.stat.exists }}"
+  when: podman_target | length > 0
+
+- name: Podman | target
+  ansible.builtin.template:
+    src: target.j2
+    dest: "/etc/systemd/system/{{ podman_target }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: podman_target | length > 0
+  notify: Reload systemd
+
+- name: Podman | reload systemd so the target is known
+  ansible.builtin.meta: flush_handlers
+
+- name: Podman | start and enable the target
+  ansible.builtin.systemd:
+    name: "{{ podman_target }}"
+    state: started
+    enabled: true
+  when:
+    - podman_target | length > 0
+    - podman_target_ready

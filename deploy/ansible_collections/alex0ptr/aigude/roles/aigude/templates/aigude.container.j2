@@ -1,0 +1,44 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=AI Gude
+{% if aigude_target | length > 0 %}
+PartOf={{ aigude_target }}
+{% endif %}
+{% if aigude_wants_firecrawl %}
+Wants=firecrawl-api.service
+{% endif %}
+{% if aigude_unit_after | length > 0 %}
+After={{ aigude_unit_after | join(' ') }}
+{% endif %}
+
+[Container]
+ContainerName={{ aigude_container_name }}
+Image={{ aigude_image if aigude_image_archive | length > 0 else aigude_container_name ~ '.image' }}
+User={{ aigude_uid }}:{{ aigude_uid }}
+{% for network in aigude_all_networks %}
+Network={{ network }}.network
+{% endfor %}
+{% for port in aigude_publish_ports %}
+PublishPort={{ port }}
+{% endfor %}
+Environment=TZ={{ aigude_time_zone }}
+{% for key, value in aigude_environment.items() %}
+Environment="{{ key }}={{ ('true' if value else 'false') if value is boolean else value | string | replace('\\', '\\\\') | replace('"', '\\"') }}"
+{% endfor %}
+
+# The configuration folder is mounted as a folder, not as single files: the editor of the User Config writes through a
+# temporary file and a rename. It is the working directory, so an aigude.toml in it is the settings file; what the unit
+# sets wins over it.
+Volume={{ aigude_config_dir }}:/etc/aigude
+WorkingDir=/etc/aigude
+Volume={{ aigude_data_dir }}:/var/lib/aigude/data
+# The keys are in this file, one line KEY=value, kept outside the mounted folder and out of every unit.
+EnvironmentFile={{ aigude_env_file }}
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy={{ aigude_target or 'multi-user.target' }}

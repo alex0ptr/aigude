@@ -1,0 +1,25 @@
+---
+argument_specs:
+  main:
+    short_description: Podman with Quadlet support on a Debian or Ubuntu host
+    description:
+      - Installs Podman, Netavark and Aardvark DNS, checks the version, creates the folder of the Quadlet files and, if asked, a systemd target for the units.
+      - Meant for Ubuntu 24.04 (Podman 4.9) and Debian 13 (Podman 5.4). A Podman older than podman_min_version stops the role.
+    options:
+      podman_package_state:
+        type: str
+        default: present
+        choices: [present, latest]
+        description: Whether the packages are only installed or kept at the newest version of the distribution.
+      podman_min_version:
+        type: str
+        default: "4.8"
+        description: The oldest Podman accepted.
+      podman_quadlet_dir:
+        type: path
+        default: /etc/containers/systemd
+        description: Folder of the Quadlet files.
+      podman_target:
+        type: str
+        default: ""
+        description: Name of a systemd target to create, for example C(cloud.target), which the units of the other roles can belong to. Empty creates none.

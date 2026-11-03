@@ -1,0 +1,45 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Firecrawl: API
+{% if firecrawl_target | length > 0 %}
+PartOf={{ firecrawl_target }}
+{% endif %}
+# Redis, Postgres and RabbitMQ are required. Playwright is only wanted, so that an unsteady Playwright does not take the
+# API down with it.
+Requires=firecrawl-redis.service firecrawl-rabbitmq.service firecrawl-postgres.service
+Wants=firecrawl-playwright.service
+After={{ ([firecrawl_target] | select | list + ['firecrawl-redis.service', 'firecrawl-playwright.service', 'firecrawl-rabbitmq.service', 'firecrawl-postgres.service']) | join(' ') }}
+
+[Container]
+ContainerName=firecrawl-api
+Image=firecrawl-api.image
+Network={{ firecrawl_network }}.network
+{% for port in firecrawl_publish %}
+PublishPort={{ port }}
+{% endfor %}
+# Inside the network the API is http://firecrawl-api:3002.
+Exec=node dist/src/harness.js --start-docker
+Environment=HOST=0.0.0.0
+Environment=PORT=3002
+Environment=ENV=local
+Environment=USE_DB_AUTHENTICATION=false
+Environment=REDIS_URL=redis://firecrawl-redis:6379
+Environment=REDIS_RATE_LIMIT_URL=redis://firecrawl-redis:6379
+Environment=PLAYWRIGHT_MICROSERVICE_URL=http://firecrawl-playwright:3000/scrape
+Environment=NUQ_RABBITMQ_URL=amqp://firecrawl-rabbitmq:5672
+Environment=POSTGRES_USER=postgres
+Environment=POSTGRES_PASSWORD=postgres
+Environment=POSTGRES_DB=postgres
+Environment=POSTGRES_HOST=firecrawl-postgres
+Environment=POSTGRES_PORT=5432
+Environment=NUM_WORKERS_PER_QUEUE=8
+Environment=HARNESS_STARTUP_TIMEOUT_MS=60000
+Ulimit=nofile=65535:65535
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy={{ firecrawl_target or 'multi-user.target' }}

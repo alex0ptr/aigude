@@ -1,0 +1,26 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Firecrawl: Playwright service
+{% if firecrawl_target | length > 0 %}
+PartOf={{ firecrawl_target }}
+After={{ firecrawl_target }}
+{% endif %}
+
+[Container]
+ContainerName=firecrawl-playwright
+Image=firecrawl-playwright.image
+Network={{ firecrawl_network }}.network
+Environment=PORT=3000
+Environment=MAX_CONCURRENT_PAGES=10
+DropCapability=ALL
+# No NoNewPrivileges=true: with this image the process cannot open UDP sockets. Every DNS lookup then fails with
+# EAI_AGAIN and Playwright never starts, because Corepack has to download pnpm.
+Tmpfs=/tmp/.cache:noexec,nosuid,size=1g
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy={{ firecrawl_target or 'multi-user.target' }}

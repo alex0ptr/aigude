@@ -1,0 +1,11 @@
+{{ ansible_managed | comment }}
+# The network of the Firecrawl. AI Gude joins it, a proxy must not: the API has no authentication and fetches any
+# address it is given.
+[Network]
+NetworkName={{ firecrawl_network }}
+{% if firecrawl_subnet | length > 0 %}
+Subnet={{ firecrawl_subnet }}
+{% endif %}
+{% if firecrawl_gateway | length > 0 %}
+Gateway={{ firecrawl_gateway }}
+{% endif %}

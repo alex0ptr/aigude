@@ -1,0 +1,52 @@
+---
+argument_specs:
+  main:
+    short_description: A Firecrawl of its own for AI Gude, five containers on a network of their own
+    description:
+      - Installs the Quadlets of Redis, Playwright, RabbitMQ, Postgres and the Firecrawl API on a host with rootful Podman and starts them.
+      - The API listens on port 3002 inside the network and is published on the host only through firecrawl_publish.
+    options:
+      firecrawl_network:
+        type: str
+        default: firecrawl
+        description: Name of the Quadlet network of the Firecrawl.
+      firecrawl_subnet:
+        type: str
+        default: ""
+        description: Fixed subnet of the network, for example C(10.90.2.0/24). Needed when firecrawl_manage_ufw is set.
+      firecrawl_gateway:
+        type: str
+        default: ""
+        description: Gateway of the fixed subnet, for example C(10.90.2.1). Used only together with firecrawl_subnet.
+      firecrawl_api_image:
+        type: str
+        description: Image of the Firecrawl API, pinned by digest. The default is set in the role.
+      firecrawl_playwright_image:
+        type: str
+        description: Image of the Playwright service, pinned by digest. The default is set in the role.
+      firecrawl_postgres_image:
+        type: str
+        description: Image of the Postgres of the queue, pinned by digest. The default is set in the role.
+      firecrawl_rabbitmq_image:
+        type: str
+        description: Image of RabbitMQ, pinned by digest. The default is set in the role.
+      firecrawl_redis_image:
+        type: str
+        description: Image of Redis, pinned by digest. The default is set in the role.
+      firecrawl_quadlet_dir:
+        type: path
+        default: /etc/containers/systemd
+        description: Folder of the Quadlet files.
+      firecrawl_target:
+        type: str
+        default: ""
+        description: Systemd target the units belong to, for example C(cloud.target). Empty means C(multi-user.target).
+      firecrawl_publish:
+        type: list
+        elements: str
+        default: []
+        description: Ports of the API to publish on the host, written as for C(PublishPort=). The API has no authentication, so there are none by default.
+      firecrawl_manage_ufw:
+        type: bool
+        default: false
+        description: Allow the DNS of the network in ufw. Needs firecrawl_subnet. With false the firewall is not touched.

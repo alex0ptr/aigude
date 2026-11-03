@@ -1,0 +1,28 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Traefik
+{% if traefik_target | length > 0 %}
+PartOf={{ traefik_target }}
+After={{ traefik_target }}
+{% endif %}
+
+[Container]
+ContainerName={{ traefik_container_name }}
+Image={{ traefik_container_name }}.image
+Network={{ traefik_network }}.network
+# Port 80 answers the challenge of the ACME server and redirects everything else to 443.
+PublishPort={{ traefik_http_port }}:80
+PublishPort={{ traefik_https_port }}:443
+Exec=--configFile={{ traefik_config_dir }}/traefik.yml
+# traefik.yml, the routes and the sign-ins, read only: Traefik writes nothing there.
+Volume={{ traefik_config_dir }}:{{ traefik_config_dir }}:ro
+# The certificates of the ACME server. Losing them means asking for new ones, which is limited.
+Volume={{ traefik_data_dir }}:/data
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy={{ traefik_target or 'multi-user.target' }}

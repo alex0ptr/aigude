@@ -14,7 +14,7 @@ FROM mwader/static-ffmpeg:${FFMPEG_VERSION} AS ffmpeg
 FROM ${BASE_IMAGE}
 
 # Folders are mounted at run time (the runtime creates the mount points) and whoever mounts them gives them to the
-# user 10001 (Podman: the option :U), so the image prepares and owns none.
+# user 10001 (the Ansible collection under deploy/ does that), so the image prepares and owns none.
 ENV AIGUDE_USERS_DIR=/etc/aigude/users
 ENV AIGUDE_DATA_DIR=/var/lib/aigude/data
 # The service listens on all addresses of the container; publish the port only where it should be reachable.

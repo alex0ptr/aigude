@@ -1,0 +1,7 @@
+---
+# Containers ask the DNS of the network at its gateway, an address of the host: that is INPUT, which ufw denies.
+- name: Firecrawl | allow the DNS of the network in ufw
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ firecrawl_subnet }}"
+    to_port: "53"
