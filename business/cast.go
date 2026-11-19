@@ -220,7 +220,10 @@ func warnWhenOffBudget(script Script, profileID string, wordBudget int) {
 
 // collect gathers the Content of all Subscriptions of the CastProfile published within its Max Lookback up to now,
 // leaving out what Episodes of the CastProfile have used. What an earlier Subscription of the CastProfile delivered
-// is left out of the later ones, before anything is spent on it. It returns ErrNoNewContent when nothing is left.
+// is left out of the later ones, before anything is spent on it. A Subscription whose Content cannot be fetched, also
+// after trying again, is skipped with a warning; the Content of the others is used and the skipped Subscription's
+// Content counts as new in the next Episode. It fails only when every Subscription failed. It returns
+// ErrNoNewContent when nothing is left.
 func (e *Episodes) collect(userID string, profile CastProfile, now time.Time) ([]Content, Usage, error) {
 	identities, err := e.repository.UsedContent(userID, profile.ID)
 	if err != nil {
@@ -236,12 +239,18 @@ func (e *Episodes) collect(userID string, profile CastProfile, now time.Time) ([
 	opts := ContentFetchOpts{Skip: func(identity string) bool { return used[identity] || delivered[identity] }}
 	var contents []Content
 	var usage Usage
-	for _, subscription := range profile.Subscriptions {
+	var failures []error
+	for position, subscription := range profile.Subscriptions {
 		slog.Info("Fetching content from repository", "profile", profile.ID, "since", since, "until", until)
-		fetched, fetchedUsage, err := subscription.Repository.Content(since, until, opts)
+		fetched, fetchedUsage, err := retryTransient(e.clock, "fetching content", func() ([]Content, Usage, error) {
+			return subscription.Repository.Content(since, until, opts)
+		})
 		usage = usage.Add(fetchedUsage)
 		if err != nil {
-			return nil, usage, fmt.Errorf("fetch content: %w", err)
+			slog.Warn("Subscription skipped, its content could not be fetched",
+				"user", userID, "profile", profile.ID, "subscription", position+1, "error", err)
+			failures = append(failures, err)
+			continue
 		}
 		for _, content := range fetched {
 			if content.Identity != "" && delivered[content.Identity] {
@@ -253,6 +262,9 @@ func (e *Episodes) collect(userID string, profile CastProfile, now time.Time) ([
 			}
 			contents = append(contents, content)
 		}
+	}
+	if len(failures) > 0 && len(failures) == len(profile.Subscriptions) {
+		return nil, usage, fmt.Errorf("fetch content: %w", errors.Join(failures...))
 	}
 	if len(contents) == 0 {
 		return nil, usage, ErrNoNewContent

@@ -111,8 +111,12 @@ sequenceDiagram
 What to keep in mind:
 
 - One Episode is produced at a time. Requests wait in a queue.
-- Choose a Max Lookback that is larger than the interval between two Schedules. Content older than the Max Lookback is
+- Choose a Max Lookback of at least twice the interval between two Schedules. Content older than the Max Lookback is
   never considered, so a shorter one lets articles fall through the gap between two Episodes.
+- A Subscription that cannot be read is tried three times with a short wait, then skipped with a warning in the log, and
+  the Episode is made from the other Subscriptions. Its Content has not been used, so the next Episode tells it, as long
+  as it lies within the Max Lookback. The second interval of the Max Lookback is that margin. The Episode fails only when
+  every Subscription of its CastProfile fails.
 - A larger Max Lookback does no harm, because each Episode remembers the Content it used and no article is told twice.
   Deleting an Episode gives its Content back.
 - A Schedule that was due while the service was not running is made up at the start, once for each CastProfile.

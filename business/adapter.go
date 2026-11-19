@@ -24,7 +24,8 @@ type ScriptWriter interface {
 }
 
 // ErrTransient marks an error of a step that may go away when the step is tried again, such as a rate limit or a
-// server error of a speech service. An adapter wraps its error with it; the production retries such a step.
+// server error of a speech service or of a feed. An adapter wraps its error with it; the production retries such a
+// step.
 var ErrTransient = errors.New("transient error")
 
 // ErrEpisodeNotFound is returned by an EpisodeRepository when the User has no Episode with the given ID.

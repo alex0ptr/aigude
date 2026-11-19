@@ -1,8 +1,10 @@
 package rss
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -59,16 +61,31 @@ func (r *Repository) Content(since, until time.Time, opts business.ContentFetchO
 	return contents, usage, nil
 }
 
-// fetchFeed fetches and parses the RSS feed from the configured URL.
+// fetchFeed fetches and parses the RSS feed from the configured URL. The error names the feed and is marked with
+// business.ErrTransient when trying again may help.
 func (r *Repository) fetchFeed() (*gofeed.Feed, error) {
 	fp := gofeed.NewParser()
 	fp.Client = r.client
 	feed, err := fp.ParseURL(r.feedURL)
 	if err != nil {
-		slog.Error("Failed to fetch RSS feed", "feedURL", r.feedURL, "error", err)
-		return nil, fmt.Errorf("failed to fetch RSS feed: %w", err)
+		slog.Debug("Fetching the RSS feed failed", "feedURL", r.feedURL, "error", err)
+		return nil, fmt.Errorf("fetch RSS feed %s: %w", r.feedURL, classify(err))
 	}
 	return feed, nil
+}
+
+// classify marks an error that may go away on its own, a rate limit, an error of the server or a failure of the
+// network such as a timeout, as business.ErrTransient. Any other error, such as a missing feed or a document that is
+// no feed, is returned as it is.
+func classify(err error) error {
+	var httpErr gofeed.HTTPError
+	var netErr net.Error
+	switch {
+	case errors.As(err, &httpErr) && (httpErr.StatusCode == http.StatusTooManyRequests || httpErr.StatusCode >= http.StatusInternalServerError),
+		errors.As(err, &netErr):
+		return fmt.Errorf("%w: %w", business.ErrTransient, err)
+	}
+	return err
 }
 
 // convertItems converts RSS feed items to business.Content, applying time filtering. The Usage is what retrieving

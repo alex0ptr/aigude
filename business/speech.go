@@ -1,7 +1,6 @@
 package business
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -52,28 +51,12 @@ func (e *Episodes) speak(script Script, profile CastProfile) (joinedSpeech, Usag
 	return joined, usage, nil
 }
 
-// speechAttempts is how often a Section is spoken before the Episode fails with a transient error, and speechRetryWait
-// the wait after the first failure; every further wait is twice as long as the one before.
-const (
-	speechAttempts  = 3
-	speechRetryWait = time.Second
-)
-
 // synthesize speaks the text, trying again after a wait when the speech service fails with a transient error. The
 // Usage is what every attempt consumed.
 func (e *Episodes) synthesize(text string, voice Voice) (Speech, Usage, error) {
-	var usage Usage
-	wait := speechRetryWait
-	for attempt := 1; ; attempt++ {
-		speech, spoken, err := e.tts.Synthesize(text, voice)
-		usage = usage.Add(spoken)
-		if err == nil || !errors.Is(err, ErrTransient) || attempt == speechAttempts {
-			return speech, usage, err
-		}
-		slog.Warn("Speech failed, trying again", "attempt", attempt, "of", speechAttempts, "wait", wait, "error", err)
-		e.clock.Sleep(wait)
-		wait *= 2
-	}
+	return retryTransient(e.clock, "speech", func() (Speech, Usage, error) {
+		return e.tts.Synthesize(text, voice)
+	})
 }
 
 // silence is PCM of the given length that makes no sound.

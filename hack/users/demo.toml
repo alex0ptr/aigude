@@ -38,10 +38,12 @@ display_name = "Last Week in CNCF"
 # Mandatory, no default. How far back from the moment an Episode is made the
 # publication date of Content may lie, as a duration greater than zero such as
 # "24h" or "72h". Content without a publication date is skipped. Feeds that
-# publish less than once a day need a larger value to ever make it in. Eight days
-# are a little more than the weekly Schedule below, so nothing falls between two
-# Episodes; Content that was used already is not told again.
-max_lookback = "192h"
+# publish less than once a day need a larger value to ever make it in. Use at least
+# twice the interval between two Schedules: two weeks for the weekly Schedule
+# below. Nothing falls between two Episodes, and when a Subscription cannot be
+# read for one run, the next Episode still tells its Content. Content that was
+# used already is not told again.
+max_lookback = "336h"
 
 # Optional. Number of spoken words an Episode of this CastProfile aims for and
 # should not exceed (1400 words are about ten minutes). Without it the service

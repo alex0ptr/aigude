@@ -1,6 +1,7 @@
 package rss
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -100,4 +101,50 @@ func TestItemsThatAreUsedAlreadyAreSkippedBeforeAnythingIsSpentOnThem(t *testing
 	require.NoError(t, err)
 	assert.Equal(t, []string{"new"}, titles(contents))
 	assert.Equal(t, []string{"https://example.org/b"}, crawler.calls)
+}
+
+func TestOnlyFailuresThatMayGoAwayAreMarkedTransient(t *testing.T) {
+	tests := []struct {
+		name      string
+		status    int
+		transient bool
+	}{
+		{"server error", http.StatusInternalServerError, true},
+		{"bad gateway", http.StatusBadGateway, true},
+		{"rate limit", http.StatusTooManyRequests, true},
+		{"not found", http.StatusNotFound, false},
+		{"unauthorized", http.StatusUnauthorized, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(tt.status) }))
+			t.Cleanup(srv.Close)
+
+			_, _, err := NewRepository(srv.URL, &recordingCrawler{}, Opts{}).Content(now.Add(-time.Hour), now, business.ContentFetchOpts{})
+
+			require.Error(t, err)
+			assert.Equal(t, tt.transient, errors.Is(err, business.ErrTransient))
+			assert.ErrorContains(t, err, srv.URL, "the error names the feed")
+		})
+	}
+}
+
+func TestAFeedThatCannotBeReachedIsTransient(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	address := srv.URL
+	srv.Close()
+
+	_, _, err := NewRepository(address, &recordingCrawler{}, Opts{}).Content(now.Add(-time.Hour), now, business.ContentFetchOpts{})
+
+	assert.ErrorIs(t, err, business.ErrTransient)
+}
+
+func TestADocumentThatIsNoFeedIsNotTransient(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<html></html>")) }))
+	t.Cleanup(srv.Close)
+
+	_, _, err := NewRepository(srv.URL, &recordingCrawler{}, Opts{}).Content(now.Add(-time.Hour), now, business.ContentFetchOpts{})
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, business.ErrTransient)
 }
