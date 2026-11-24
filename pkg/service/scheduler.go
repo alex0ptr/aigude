@@ -15,7 +15,7 @@ import (
 type scheduler struct {
 	store     *userconfig.Store
 	generator *generator
-	episodes  business.EpisodeRepository
+	library   *business.EpisodeLibrary
 	clock     business.Clock
 	location  *time.Location
 	maxSleep  time.Duration
@@ -28,11 +28,11 @@ type scheduler struct {
 	started map[generationRequest]time.Time
 }
 
-// newScheduler creates a scheduler that evaluates the Schedules in the location. The Episodes in the repository tell
+// newScheduler creates a scheduler that evaluates the Schedules in the location. The Episodes in the library tell
 // which runs were missed while the service was off.
-func newScheduler(store *userconfig.Store, generator *generator, episodes business.EpisodeRepository, clock business.Clock, location *time.Location, maxSleep time.Duration) *scheduler {
+func newScheduler(store *userconfig.Store, generator *generator, library *business.EpisodeLibrary, clock business.Clock, location *time.Location, maxSleep time.Duration) *scheduler {
 	return &scheduler{
-		store: store, generator: generator, episodes: episodes, clock: clock, location: location, maxSleep: maxSleep,
+		store: store, generator: generator, library: library, clock: clock, location: location, maxSleep: maxSleep,
 		started: make(map[generationRequest]time.Time),
 	}
 }
@@ -70,7 +70,7 @@ func (s *scheduler) makeUpMissedRuns() {
 	now := s.checked
 	for _, user := range s.snapshot.Users() {
 		for _, profile := range user.CastProfiles {
-			latest, err := s.episodes.List(user.ID, business.ListOpts{CastProfileID: profile.ID, Limit: 1})
+			latest, err := s.library.List(user.ID, business.ListOpts{CastProfileID: profile.ID, Limit: 1})
 			if err != nil {
 				slog.Error("Missed runs could not be looked up", "user", user.ID, "profile", profile.ID, "error", err)
 				continue

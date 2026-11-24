@@ -16,16 +16,16 @@ const cleanUpInterval = 24 * time.Hour
 // cache and the Episodes that are older than the Retention, and once right at the start.
 type maintenance struct {
 	crawler   *business.CachingCrawler
-	episodes  business.EpisodeRepository
+	library   *business.EpisodeLibrary
 	retention time.Duration
 	clock     business.Clock
 	maxSleep  time.Duration
 }
 
 // newMaintenance creates the chores for the crawl cache and the Episodes; a retention of zero keeps every Episode.
-func newMaintenance(crawler *business.CachingCrawler, episodes business.EpisodeRepository, retention time.Duration,
+func newMaintenance(crawler *business.CachingCrawler, library *business.EpisodeLibrary, retention time.Duration,
 	clock business.Clock, maxSleep time.Duration) *maintenance {
-	return &maintenance{crawler: crawler, episodes: episodes, retention: retention, clock: clock, maxSleep: maxSleep}
+	return &maintenance{crawler: crawler, library: library, retention: retention, clock: clock, maxSleep: maxSleep}
 }
 
 // deleteExpiredEpisodes deletes the Episodes older than the Retention, as counted by the service clock.
@@ -34,7 +34,7 @@ func (m *maintenance) deleteExpiredEpisodes(now time.Time) {
 		slog.Debug("Episodes are kept for ever, nothing to delete")
 		return
 	}
-	deleted, err := m.episodes.DeleteBefore(now.Add(-m.retention))
+	deleted, err := m.library.DeleteBefore(now.Add(-m.retention))
 	if err != nil {
 		slog.Error("Deleting Episodes past their Retention failed", "error", err)
 		return

@@ -140,7 +140,7 @@ func (o pageOpts) all() bool {
 // episodePage returns one page of the User's Episodes, newest first, after opts.BeforeID. Episodes that failed are
 // listed with their reason. The address that loads the next page keeps the choice of opts.ShowAll.
 func (h *Handler) episodePage(user *userconfig.User, opts pageOpts) (episodeList, error) {
-	episodes, err := h.episodes.List(user.ID, business.ListOpts{
+	episodes, err := h.library.List(user.ID, business.ListOpts{
 		Limit: episodePageSize + 1, BeforeID: opts.BeforeID, UnlistenedOnly: !opts.all(),
 	})
 	if err != nil {
@@ -194,7 +194,7 @@ func (h *Handler) listEpisodes(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) showEpisode(w http.ResponseWriter, r *http.Request) {
 	a := accessOf(r)
 	user := a.selectedUser(r)
-	episode, ok := h.episodeOf(w, r, user)
+	episode, ok := h.episodeNamedInPath(w, r, user, h.library.GetReady)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func (h *Handler) showEpisode(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) showSource(w http.ResponseWriter, r *http.Request) {
 	a := accessOf(r)
 	user := a.selectedUser(r)
-	episode, ok := h.episodeOf(w, r, user)
+	episode, ok := h.episodeNamedInPath(w, r, user, h.library.GetReady)
 	if !ok {
 		return
 	}
@@ -261,13 +261,19 @@ func (h *Handler) showSource(w http.ResponseWriter, r *http.Request) {
 // serveAudio sends the audio of an Episode of the selected User. Range requests are answered with partial
 // content, so the browser can seek.
 func (h *Handler) serveAudio(w http.ResponseWriter, r *http.Request) {
-	episode, ok := h.episodeOf(w, r, accessOf(r).selectedUser(r))
-	if !ok {
+	user := accessOf(r).selectedUser(r)
+	id, ok := episodeID(r)
+	if user == nil || !ok {
+		http.NotFound(w, r)
 		return
 	}
-	audio, modTime, err := h.audio.Open(episode.AudioLocation)
+	audio, modTime, err := h.library.OpenAudio(user.ID, id)
+	if errors.Is(err, business.ErrEpisodeNotFound) {
+		answerEpisodeError(w, r, err)
+		return
+	}
 	if err != nil {
-		slog.Error("Open episode audio failed", "id", episode.ID, "location", episode.AudioLocation, "error", err)
+		slog.Error("Open episode audio failed", "user", user.ID, "id", id, "error", err)
 		http.Error(w, "audio not available", http.StatusNotFound)
 		return
 	}
@@ -277,30 +283,23 @@ func (h *Handler) serveAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 // setListened sets whether an Episode of the selected User is Listened to the value the form names in listened, true or
-// false. The state is sent rather than switched, so that the automatic mark of the player and a click cannot undo each other. An
-// Episode that failed has no state. The marker comes back as a fragment for HTMX, otherwise the browser returns to the
-// page it came from.
+// false. The state is sent rather than switched, so that the automatic mark of the player and a click cannot undo
+// each other. The marker comes back as a fragment for HTMX, otherwise the browser returns to the page it came from.
 func (h *Handler) setListened(w http.ResponseWriter, r *http.Request) {
 	user := accessOf(r).selectedUser(r)
-	episode, ok := h.ownEpisode(w, r, user)
-	if !ok {
-		return
-	}
-	if episode.Failure != "" {
-		slog.Debug("Listened state of an Episode that failed", "user", user.ID, "id", episode.ID)
+	id, ok := episodeID(r)
+	if user == nil || !ok {
 		http.NotFound(w, r)
 		return
 	}
 	value := r.PostFormValue("listened")
 	if value != "true" && value != "false" {
-		slog.Warn("Listened value that is neither true nor false rejected", "user", user.ID, "id", episode.ID, "value", value)
+		slog.Warn("Listened value that is neither true nor false rejected", "user", user.ID, "id", id, "value", value)
 		http.Error(w, "listened must be true or false", http.StatusBadRequest)
 		return
 	}
-	episode.Listened = value == "true"
-	if err := h.episodes.SetListened(user.ID, episode.ID, episode.Listened); err != nil {
-		slog.Error("Set listened failed", "user", user.ID, "id", episode.ID, "error", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	episode, err := h.library.SetListened(user.ID, id, value == "true")
+	if answerEpisodeError(w, r, err) {
 		return
 	}
 	if r.Header.Get("HX-Request") != "true" {
@@ -324,13 +323,13 @@ func pathOfReferer(r *http.Request) string {
 
 // deleteEpisode removes an Episode of the selected User and returns to the list.
 func (h *Handler) deleteEpisode(w http.ResponseWriter, r *http.Request) {
-	episode, ok := h.ownEpisode(w, r, accessOf(r).selectedUser(r))
-	if !ok {
+	user := accessOf(r).selectedUser(r)
+	id, ok := episodeID(r)
+	if user == nil || !ok {
+		http.NotFound(w, r)
 		return
 	}
-	if err := h.episodes.Delete(episode.UserID, episode.ID); err != nil {
-		slog.Error("Delete episode failed", "id", episode.ID, "error", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if answerEpisodeError(w, r, h.library.Delete(user.ID, id)) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -340,13 +339,8 @@ func (h *Handler) deleteEpisode(w http.ResponseWriter, r *http.Request) {
 // accepted the failed Episode is removed, so that the new attempt takes its place.
 func (h *Handler) retryEpisode(w http.ResponseWriter, r *http.Request) {
 	user := accessOf(r).selectedUser(r)
-	episode, ok := h.ownEpisode(w, r, user)
+	episode, ok := h.episodeNamedInPath(w, r, user, h.library.GetFailed)
 	if !ok {
-		return
-	}
-	if episode.Failure == "" {
-		slog.Debug("Retry of an Episode that did not fail", "user", user.ID, "id", episode.ID)
-		http.NotFound(w, r)
 		return
 	}
 	if _, ok := user.CastProfile(episode.CastProfileID); !ok {
@@ -364,7 +358,7 @@ func (h *Handler) retryEpisode(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	if err := h.episodes.Delete(user.ID, episode.ID); err != nil {
+	if err := h.library.Delete(user.ID, episode.ID); err != nil {
 		slog.Error("Removing the failed Episode after a retry failed", "user", user.ID, "id", episode.ID, "error", err)
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -418,39 +412,40 @@ func (h *Handler) showGeneration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// episodeOf finds the Episode with audio named in the path among those of the User. It answers the request itself and
-// reports false when there is none, so another User's Episode, and one that has nothing to play, is indistinguishable
-// from a missing one.
-func (h *Handler) episodeOf(w http.ResponseWriter, r *http.Request, user *userconfig.User) (business.Episode, bool) {
-	episode, ok := h.ownEpisode(w, r, user)
-	if ok && episode.AudioLocation == "" {
-		slog.Debug("Episode has no audio, not shown", "user", user.ID, "id", episode.ID)
-		http.NotFound(w, r)
-		return business.Episode{}, false
-	}
-	return episode, ok
+// episodeID reads the number of the Episode from the path.
+func episodeID(r *http.Request) (int64, bool) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	return id, err == nil
 }
 
-// ownEpisode finds the Episode named in the path among those of the User, a failed one included. It answers the
-// request itself and reports false when there is none.
-func (h *Handler) ownEpisode(w http.ResponseWriter, r *http.Request, user *userconfig.User) (business.Episode, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if user == nil || err != nil {
+// episodeNamedInPath finds the Episode named in the path with get, which is one of the lookups of the EpisodeLibrary
+// for the selected User. It answers the request itself and reports false when there is none, so another User's Episode
+// is indistinguishable from a missing one.
+func (h *Handler) episodeNamedInPath(w http.ResponseWriter, r *http.Request, user *userconfig.User,
+	get func(userID string, id int64) (business.Episode, error)) (business.Episode, bool) {
+	id, ok := episodeID(r)
+	if user == nil || !ok {
 		http.NotFound(w, r)
 		return business.Episode{}, false
 	}
-	episode, err := h.episodes.Get(user.ID, id)
-	if errors.Is(err, business.ErrEpisodeNotFound) {
-		slog.Debug("Episode not found for User", "user", user.ID, "id", id)
+	episode, err := get(user.ID, id)
+	return episode, !answerEpisodeError(w, r, err)
+}
+
+// answerEpisodeError answers the request for an error of the EpisodeLibrary and reports whether it did: 404 for an
+// Episode that is not there or cannot do what was asked, 500 for anything else. It does nothing for a nil error.
+func answerEpisodeError(w http.ResponseWriter, r *http.Request, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, business.ErrEpisodeNotFound), errors.Is(err, business.ErrEpisodeFailed):
+		slog.Debug("Episode not found or not able to do what was asked", "path", r.URL.Path, "error", err)
 		http.NotFound(w, r)
-		return business.Episode{}, false
-	}
-	if err != nil {
-		slog.Error("Get episode failed", "user", user.ID, "id", id, "error", err)
+	default:
+		slog.Error("Episode request failed", "path", r.URL.Path, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
-		return business.Episode{}, false
 	}
-	return episode, true
+	return true
 }
 
 // markdown renders the Markdown of a crawled page. Raw HTML in it is left out and links with dangerous schemes are

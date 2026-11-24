@@ -115,10 +115,8 @@ type Handler struct {
 	usersDir string
 	// source is where the current User Config comes from.
 	source UserConfigSource
-	// episodes holds the produced Episodes.
-	episodes business.EpisodeRepository
-	// audio opens the audio of the Episodes for playing.
-	audio business.AudioStore
+	// library is what the interface does with the produced Episodes.
+	library *business.EpisodeLibrary
 	// generator produces Episodes on request.
 	generator Generator
 	// logs are the log lines shown in the folding log.
@@ -139,7 +137,7 @@ type Handler struct {
 }
 
 // New parses the embedded templates and builds the router.
-func New(usersDir string, source UserConfigSource, episodes business.EpisodeRepository, audio business.AudioStore, generator Generator, logs LogSource, loc *time.Location) (*Handler, error) {
+func New(usersDir string, source UserConfigSource, library *business.EpisodeLibrary, generator Generator, logs LogSource, loc *time.Location) (*Handler, error) {
 	index, err := template.ParseFS(templateFS, "templates/layout.html", "templates/index.html", "templates/episode_list.html", "templates/generate.html", "templates/usage.html", "templates/listened.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
@@ -166,7 +164,7 @@ func New(usersDir string, source UserConfigSource, episodes business.EpisodeRepo
 	}
 
 	h := &Handler{
-		usersDir: usersDir, source: source, episodes: episodes, audio: audio, generator: generator, logs: logs, loc: loc,
+		usersDir: usersDir, source: source, library: library, generator: generator, logs: logs, loc: loc,
 		index: index, episode: episode, fragment: fragment, sourcePage: sourcePage, config: config, mux: http.NewServeMux(), root: http.NewServeMux(),
 	}
 	h.mux.HandleFunc("GET /{$}", h.showIndex)
@@ -238,7 +236,7 @@ func (h *Handler) showIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		data.Episodes = list
 		if len(list.Rows) == 0 && !opts.all() {
-			existing, err := h.episodes.List(data.Selected.ID, business.ListOpts{Limit: 1})
+			existing, err := h.library.List(data.Selected.ID, business.ListOpts{Limit: 1})
 			if err != nil {
 				slog.Error("Look for any episode failed", "user", data.Selected.ID, "error", err)
 				http.Error(w, "internal error", http.StatusInternalServerError)

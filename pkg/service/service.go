@@ -79,7 +79,8 @@ func New(s settings.Settings, writer business.ScriptWriter, tts business.TTS, cr
 	producer := business.NewEpisodes(writer, tts, oggchapters.NewEncoder(pkgaudio.NewFFmpegConverter()), episodes, clock, loc, voice,
 		s.WordBudget, s.ArticleCharLimit, s.SectionPause)
 	gen := newGenerator(store, producer, cachingCrawler, clock)
-	handler, err := web.New(s.UsersDir, store, episodes, audio, gen, logs, loc)
+	library := business.NewEpisodeLibrary(episodes, audio)
+	handler, err := web.New(s.UsersDir, store, library, gen, logs, loc)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("cannot start: %w", err)
@@ -87,8 +88,8 @@ func New(s settings.Settings, writer business.ScriptWriter, tts business.TTS, cr
 	slog.Info("Service assembled", "timeZone", s.TimeZone, "now", clock.Now().In(loc),
 		"usersDir", s.UsersDir, "dataDir", s.DataDir)
 	return &Service{settings: s, store: store, db: db, episodes: episodes, handler: handler, generator: gen,
-		scheduler:   newScheduler(store, gen, episodes, clock, loc, s.SchedulerMaxSleep),
-		maintenance: newMaintenance(cachingCrawler, episodes, s.EpisodeRetention, clock, s.SchedulerMaxSleep)}, nil
+		scheduler:   newScheduler(store, gen, library, clock, loc, s.SchedulerMaxSleep),
+		maintenance: newMaintenance(cachingCrawler, library, s.EpisodeRetention, clock, s.SchedulerMaxSleep)}, nil
 }
 
 // Episodes returns the persistence of produced Episodes.
