@@ -36,6 +36,8 @@ type episodeRow struct {
 	Failure string
 	// Usage are the lines of the tooltip of what the Episode consumed; none when nothing is stored.
 	Usage []string
+	// Listened tells that the Episode is Listened.
+	Listened bool
 }
 
 // episodeList is a page of Episodes, newest first.
@@ -97,6 +99,7 @@ func (h *Handler) newEpisodeRow(user *userconfig.User, e business.Episode, demo 
 	row := episodeRow{
 		ID: e.ID, Title: e.Script.Title, CastProfileID: e.CastProfileID, CastProfile: name,
 		Created: h.formatTime(e.Date), Duration: formatDuration(e.Duration), Failed: e.Failure != "", Usage: usageLines(e.Usage),
+		Listened: e.Listened,
 	}
 	if !demo {
 		row.Failure = e.Failure
@@ -104,11 +107,42 @@ func (h *Handler) newEpisodeRow(user *userconfig.User, e business.Episode, demo 
 	return row
 }
 
-// episodePage returns one page of the User's Episodes, newest first. opts.BeforeID continues after the last Episode
-// of the previous page; its Limit is set here. Episodes that failed are listed with their reason.
-func (h *Handler) episodePage(user *userconfig.User, opts business.ListOpts, demo bool) (episodeList, error) {
-	opts.Limit = episodePageSize + 1
-	episodes, err := h.episodes.List(user.ID, opts)
+// showParam is the query parameter that chooses which Episodes the list shows. With the value showAllValue it shows
+// Listened Episodes too; without it the list shows only the Unlistened ones.
+const (
+	showParam    = "show"
+	showAllValue = "all"
+)
+
+// pageOpts are the optional parameters of a page of the list of Episodes. The zero value is the first page of the
+// Unlistened Episodes.
+type pageOpts struct {
+	// BeforeID continues after the Episode with this ID, which is the last one of the previous page; zero starts with
+	// the newest.
+	BeforeID int64
+	// ShowAll lists the Listened Episodes too.
+	ShowAll bool
+	// Demo tells that the list is shown in Demo Mode.
+	Demo bool
+}
+
+// pageOptsOf reads from the request whether the list shows every Episode.
+func pageOptsOf(r *http.Request, demo bool) pageOpts {
+	return pageOpts{ShowAll: r.URL.Query().Get(showParam) == showAllValue, Demo: demo}
+}
+
+// all tells whether the list shows Episodes of every state. Demo Mode always does, because a Visitor has no state of
+// their own.
+func (o pageOpts) all() bool {
+	return o.ShowAll || o.Demo
+}
+
+// episodePage returns one page of the User's Episodes, newest first, after opts.BeforeID. Episodes that failed are
+// listed with their reason. The address that loads the next page keeps the choice of opts.ShowAll.
+func (h *Handler) episodePage(user *userconfig.User, opts pageOpts) (episodeList, error) {
+	episodes, err := h.episodes.List(user.ID, business.ListOpts{
+		Limit: episodePageSize + 1, BeforeID: opts.BeforeID, UnlistenedOnly: !opts.all(),
+	})
 	if err != nil {
 		return episodeList{}, err
 	}
@@ -116,10 +150,14 @@ func (h *Handler) episodePage(user *userconfig.User, opts business.ListOpts, dem
 	if len(episodes) > episodePageSize {
 		episodes = episodes[:episodePageSize]
 		list.More = fmt.Sprintf("/episodes?before=%d", episodes[len(episodes)-1].ID)
+		if opts.ShowAll && !opts.Demo {
+			list.More += "&" + showParam + "=" + showAllValue
+		}
 	}
 	for _, e := range episodes {
-		list.Rows = append(list.Rows, h.newEpisodeRow(user, e, demo))
+		list.Rows = append(list.Rows, h.newEpisodeRow(user, e, opts.Demo))
 	}
+	list.Demo = opts.Demo
 	return list, nil
 }
 
@@ -130,7 +168,8 @@ func (h *Handler) listEpisodes(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var opts business.ListOpts
+	demo := accessOf(r).demo
+	opts := pageOptsOf(r, demo)
 	if v := r.URL.Query().Get("before"); v != "" {
 		var err error
 		if opts.BeforeID, err = strconv.ParseInt(v, 10, 64); err != nil || opts.BeforeID < 1 {
@@ -139,14 +178,12 @@ func (h *Handler) listEpisodes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	demo := accessOf(r).demo
-	list, err := h.episodePage(user, opts, demo)
+	list, err := h.episodePage(user, opts)
 	if err != nil {
 		slog.Error("List episodes failed", "user", user.ID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	list.Demo = demo
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.fragment.ExecuteTemplate(w, "episodeList", list); err != nil {
 		slog.Error("Render episode list failed", "error", err)
@@ -237,6 +274,52 @@ func (h *Handler) serveAudio(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = audio.Close() }()
 	w.Header().Set("Content-Type", "audio/ogg")
 	http.ServeContent(w, r, "", modTime, audio)
+}
+
+// setListened sets whether an Episode of the selected User is Listened to the value the form names in listened, true or
+// false. The state is sent rather than switched, so that the automatic mark of the player and a click cannot undo each other. An
+// Episode that failed has no state. The marker comes back as a fragment for HTMX, otherwise the browser returns to the
+// page it came from.
+func (h *Handler) setListened(w http.ResponseWriter, r *http.Request) {
+	user := accessOf(r).selectedUser(r)
+	episode, ok := h.ownEpisode(w, r, user)
+	if !ok {
+		return
+	}
+	if episode.Failure != "" {
+		slog.Debug("Listened state of an Episode that failed", "user", user.ID, "id", episode.ID)
+		http.NotFound(w, r)
+		return
+	}
+	value := r.PostFormValue("listened")
+	if value != "true" && value != "false" {
+		slog.Warn("Listened value that is neither true nor false rejected", "user", user.ID, "id", episode.ID, "value", value)
+		http.Error(w, "listened must be true or false", http.StatusBadRequest)
+		return
+	}
+	episode.Listened = value == "true"
+	if err := h.episodes.SetListened(user.ID, episode.ID, episode.Listened); err != nil {
+		slog.Error("Set listened failed", "user", user.ID, "id", episode.ID, "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if r.Header.Get("HX-Request") != "true" {
+		http.Redirect(w, r, pathOfReferer(r), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.fragment.ExecuteTemplate(w, "listened", h.newEpisodeRow(user, episode, false)); err != nil {
+		slog.Error("Render listened marker failed", "id", episode.ID, "error", err)
+	}
+}
+
+// pathOfReferer is the path and query of the page the request came from when it is a page of this service, else "/".
+func pathOfReferer(r *http.Request) string {
+	referer, err := url.Parse(r.Referer())
+	if err != nil || referer.Host != r.Host || !strings.HasPrefix(referer.Path, "/") || strings.HasPrefix(referer.Path, "//") {
+		return "/"
+	}
+	return referer.RequestURI()
 }
 
 // deleteEpisode removes an Episode of the selected User and returns to the list.

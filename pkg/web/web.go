@@ -97,6 +97,10 @@ type page struct {
 	Producing []castCard
 	// Episodes are the newest Episodes of the selected User; More loads the older ones.
 	Episodes episodeList
+	// ShowAll tells that the list shows every Episode, Listened ones included.
+	ShowAll bool
+	// NothingUnlistened tells that the list is narrowed to Unlistened Episodes, none is left and the User has Episodes.
+	NothingUnlistened bool
 	// Episode is the Episode shown on its own page.
 	Episode episodeView
 	// Source is the source shown on its own page.
@@ -136,15 +140,15 @@ type Handler struct {
 
 // New parses the embedded templates and builds the router.
 func New(usersDir string, source UserConfigSource, episodes business.EpisodeRepository, audio business.AudioStore, generator Generator, logs LogSource, loc *time.Location) (*Handler, error) {
-	index, err := template.ParseFS(templateFS, "templates/layout.html", "templates/index.html", "templates/episode_list.html", "templates/generate.html", "templates/usage.html")
+	index, err := template.ParseFS(templateFS, "templates/layout.html", "templates/index.html", "templates/episode_list.html", "templates/generate.html", "templates/usage.html", "templates/listened.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
-	episode, err := template.ParseFS(templateFS, "templates/layout.html", "templates/episode.html", "templates/usage.html")
+	episode, err := template.ParseFS(templateFS, "templates/layout.html", "templates/episode.html", "templates/usage.html", "templates/listened.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
-	fragment, err := template.ParseFS(templateFS, "templates/episode_list.html", "templates/generate.html", "templates/log.html", "templates/usage.html", "templates/source.html")
+	fragment, err := template.ParseFS(templateFS, "templates/episode_list.html", "templates/generate.html", "templates/log.html", "templates/usage.html", "templates/listened.html", "templates/source.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
@@ -178,6 +182,7 @@ func New(usersDir string, source UserConfigSource, episodes business.EpisodeRepo
 	h.mux.HandleFunc("GET /episodes/{id}/sources/{number}", h.showSource)
 	h.mux.HandleFunc("POST /episodes/{id}/delete", h.deleteEpisode)
 	h.mux.HandleFunc("POST /episodes/{id}/retry", h.retryEpisode)
+	h.mux.HandleFunc("POST /episodes/{id}/listened", h.setListened)
 	h.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 	h.root.HandleFunc("GET /healthz", h.healthz)
 	h.root.Handle("/", h.withAccess(h.mux))
@@ -223,14 +228,25 @@ func (h *Handler) showIndex(w http.ResponseWriter, r *http.Request) {
 				data.Producing = append(data.Producing, card)
 			}
 		}
-		list, err := h.episodePage(data.Selected, business.ListOpts{}, a.demo)
+		opts := pageOptsOf(r, a.demo)
+		data.ShowAll = opts.ShowAll
+		list, err := h.episodePage(data.Selected, opts)
 		if err != nil {
 			slog.Error("List episodes failed", "user", data.Selected.ID, "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		list.Demo = a.demo
 		data.Episodes = list
+		if len(list.Rows) == 0 && !opts.all() {
+			existing, err := h.episodes.List(data.Selected.ID, business.ListOpts{Limit: 1})
+			if err != nil {
+				slog.Error("Look for any episode failed", "user", data.Selected.ID, "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			data.NothingUnlistened = len(existing) > 0
+			slog.Debug("Unlistened list is empty", "user", data.Selected.ID, "hasEpisodes", data.NothingUnlistened)
+		}
 	}
 	if err := h.index.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("Render index page failed", "error", err)

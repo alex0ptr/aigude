@@ -25,6 +25,7 @@
   </span>
   <span class="ep-end">{{.Duration}}</span>
 </a>
+{{if not $.Demo}}{{template "listened" .}}{{end}}
 {{template "usage" .}}
 </div>
 {{end}}

@@ -7,6 +7,9 @@
 
   var RATES = [1, 1.25, 1.5, 2];
 
+  // LISTENED is the part of the Episode that counts it as listened.
+  var LISTENED = 0.8;
+
   function root() {
     return document.querySelector("[data-player]");
   }
@@ -76,6 +79,9 @@
     var list = chapters(player);
     var index = chapterAt(list, t);
 
+    if (!("demo" in player.dataset)) {
+      markListened(player, t, total);
+    }
     player.classList.toggle("is-playing", !audio.paused && !audio.ended);
     player.querySelector("[data-clock]").textContent = clock(t);
     player.querySelector("[data-total]").textContent = clock(total);
@@ -99,6 +105,24 @@
       li.classList.toggle("is-current", i === index);
       li.classList.toggle("is-past", i < index);
     });
+  }
+
+  // markListened tells the service once per page that playback reached LISTENED of the Episode, unless the marker says
+  // the Episode is Listened already. The page of a Visitor in Demo Mode has no marker and never gets here. The marker is swapped for the answer, so it shows the new state.
+  function markListened(player, t, total) {
+    var fraction = total > 0 ? t / total : 0;
+    var before = parseFloat(player.dataset.fraction || "0");
+    player.dataset.fraction = String(fraction);
+    if (before >= LISTENED || fraction < LISTENED || player.dataset.reported) {
+      return;
+    }
+    player.dataset.reported = "true";
+    var form = player.querySelector("form.listen");
+    var listened = form && form.querySelector("input[name=listened]");
+    if (!listened || listened.value !== "true") {
+      return;
+    }
+    htmx.ajax("POST", form.getAttribute("action"), { source: form, target: form, swap: "outerHTML", values: { listened: "true" } });
   }
 
   function seek(audio, t) {

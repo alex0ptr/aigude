@@ -2,6 +2,12 @@
 {{with .Selected}}
 <section aria-labelledby="h-episodes">
   <h2 class="section-head" id="h-episodes">Episodes</h2>
+  {{if not $.Demo}}
+  <nav class="ep-filter" aria-label="Which Episodes to show">
+    <a href="/"{{if not $.ShowAll}} aria-current="page"{{end}}>New</a>
+    <a href="/?show=all"{{if $.ShowAll}} aria-current="page"{{end}}>All</a>
+  </nav>
+  {{end}}
   {{if or $.Episodes.Rows $.Producing}}
   <div class="eps">
     {{range $.Producing}}
@@ -17,6 +23,8 @@
     {{end}}
     {{template "episodeList" $.Episodes}}
   </div>
+  {{else if $.NothingUnlistened}}
+  <p class="muted">Nothing new to listen to. <a href="/?show=all">Show all Episodes</a></p>
   {{else}}
   <p class="muted">No Episodes yet.</p>
   {{end}}

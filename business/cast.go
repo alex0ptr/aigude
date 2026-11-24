@@ -67,6 +67,8 @@ type Episode struct {
 	// AudioLocation is where the single audio file of the Episode is kept. It is opaque: only the AudioStore that
 	// issued it understands it. It is assigned by the EpisodeRepository and empty while the Episode has no audio.
 	AudioLocation string
+	// Listened tells that the User has heard the Episode far enough, or said so. A new Episode is not Listened.
+	Listened bool
 	// Failure says why producing the Episode failed; empty unless it did.
 	Failure string
 	// Sources are the Content items of the prompt in the order of the prompt, kept with a ready Episode so that they stay

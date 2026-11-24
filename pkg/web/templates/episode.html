@@ -2,14 +2,15 @@
 {{with .Episode}}
 <p class="back"><a href="/">&larr; Episodes</a></p>
 
-<section class="now" data-player data-duration="{{.Seconds}}" aria-label="Now Playing">
+<section class="now" data-player data-duration="{{.Seconds}}"{{if $.Demo}} data-demo{{end}} aria-label="Now Playing">
   <div class="now-head">
     <div class="cover cover-lg"><canvas class="cv" role="img" aria-label="Generated cover" data-cast="{{.CastProfileID}}" data-ep="{{.ID}}"></canvas></div>
     <div class="now-title">
       <p class="eyebrow"><i class="lamp"></i><span>Now Playing</span><span class="cast-name">{{.CastProfile}}</span></p>
       <h1>{{.Title}}</h1>
-      <p class="meta">{{.Created}} · {{.Duration}}{{if .Chapters}} · {{len .Chapters}} {{if eq (len .Chapters) 1}}Chapter{{else}}Chapters{{end}}{{end}} {{template "usage" .}}</p>
+      <div class="meta">{{.Created}} · {{.Duration}}{{if .Chapters}} · {{len .Chapters}} {{if eq (len .Chapters) 1}}Chapter{{else}}Chapters{{end}}{{end}} {{template "usage" .}}</div>
     </div>
+    {{if not $.Demo}}{{template "listened" .}}{{end}}
   </div>
 
   <audio id="player" controls preload="metadata" src="/episodes/{{.ID}}/audio"></audio>

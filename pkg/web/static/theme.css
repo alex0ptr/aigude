@@ -431,7 +431,8 @@ body {
   .app .now { padding: 18px; gap: 20px; }
 }
 @media (max-width: 480px) {
-  .now-head { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+  .now-head, .now-head:has(.listen) { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+  .now-head:has(.listen) { grid-template-columns: 84px minmax(0, 1fr) auto; }
   .cover-lg { width: 84px; height: 84px; }
   .app .ep { grid-template-columns: 48px minmax(0, 1fr); }
   .ep .cover { width: 48px; height: 48px; }
@@ -474,6 +475,28 @@ body:has(.demo-bar) .app { padding-bottom: 72px; }
 /* The meter that opens the list of what an Episode consumed. */
 .ep-item { position: relative; }
 .ep-item .usage { position: absolute; top: 6px; right: 8px; }
+.ep-item .listen { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); }
+.ep-item:has(.listen) .ep { padding-right: 72px; }
+.ep-item:has(.listen) .usage { right: 66px; }
+.ep-item:has(.is-listened) .ep-title { color: var(--muted); }
+.listen { display: inline-flex; width: 42px; height: 42px; margin: 0; }
+.listen-marker {
+  display: inline-flex; flex: none; align-items: center; justify-content: center;
+  width: 42px; min-width: 42px; height: 42px; padding: 0; margin: 0;
+  background: none; border: 1.5px solid rgba(255, 46, 151, 0.5); border-radius: 50%;
+  color: rgba(255, 46, 151, 0.7); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.listen-marker svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.listen-marker.is-listened { border-color: var(--line); background: rgba(185, 150, 255, 0.15); color: var(--muted); }
+.listen-marker:hover, .listen-marker:focus-visible { border-color: var(--pink); color: var(--pink); }
+.listen-marker.is-listened:hover, .listen-marker.is-listened:focus-visible { border-color: var(--cyan); color: var(--cyan); }
+.listen-marker:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.now-head:has(.listen) { grid-template-columns: 120px minmax(0, 1fr) auto; }
+.ep-filter { display: flex; justify-content: flex-start; gap: 14px; margin: 0 0 12px; font-family: var(--font-mono); font-size: 0.82rem; }
+.ep-filter a { color: var(--muted); text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
+.ep-filter a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--pink); }
+.ep-filter a:hover, .ep-filter a:focus-visible { color: var(--cyan); }
 .usage { display: inline-flex; vertical-align: middle; position: relative; color: var(--muted); cursor: help; border-radius: 4px; }
 .usage:hover, .usage:focus-visible { color: var(--cyan); }
 .usage:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }

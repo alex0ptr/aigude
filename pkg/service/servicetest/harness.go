@@ -349,6 +349,27 @@ func (h *Harness) Post(t *testing.T, path string) Page {
 	return readPage(t, resp)
 }
 
+// PostForm submits a form to a path, as pressing a button does, and returns the page the browser lands on. A
+// Referer, when given, is what the browser sends along.
+func (h *Harness) PostForm(t *testing.T, path string, form url.Values, referer string) Page {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, h.URL+path, strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if referer != "" {
+		req.Header.Set("Referer", h.URL+referer)
+	}
+	resp, err := h.client.Do(req)
+	require.NoError(t, err)
+	return readPage(t, resp)
+}
+
+// MarkListened sets an Episode as Listened or not in the persistence, as a User's earlier listening would have.
+func (h *Harness) MarkListened(t *testing.T, episode business.Episode, listened bool) {
+	t.Helper()
+	require.NoError(t, h.service.Episodes().SetListened(episode.UserID, episode.ID, listened))
+}
+
 // WaitFor requests a path again and again until check accepts the page, for
 // effects that arrive on their own such as a reloaded User Config. It
 // fails the test with the last page when that does not happen in time.

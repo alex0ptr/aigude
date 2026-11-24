@@ -40,6 +40,8 @@ type ListOpts struct {
 	BeforeID int64
 	// CastProfileID leaves out the Episodes of other CastProfiles; empty means all.
 	CastProfileID string
+	// UnlistenedOnly leaves out the Episodes that are Listened. An Episode that failed is never Listened and stays.
+	UnlistenedOnly bool
 }
 
 // EpisodeRepository persists produced Episodes. An Episode always belongs to a User; another User's Episodes are
@@ -56,6 +58,9 @@ type EpisodeRepository interface {
 	List(userID string, opts ListOpts) ([]Episode, error)
 	// Get returns one Episode of the User, or ErrEpisodeNotFound.
 	Get(userID string, id int64) (Episode, error)
+	// SetListened sets whether the Episode of the User is Listened, or returns ErrEpisodeNotFound. Setting the state it
+	// already has changes nothing.
+	SetListened(userID string, id int64, listened bool) error
 	// Delete removes the Episode of the User together with its audio file, or returns ErrEpisodeNotFound.
 	Delete(userID string, id int64) error
 	// DeleteBefore removes every Episode of every User that was created before the time, ready or failed, together

@@ -133,7 +133,7 @@ func (r *EpisodeRepository) SaveFailed(episode business.Episode, failure string)
 
 // List returns the User's Episodes, newest first.
 func (r *EpisodeRepository) List(userID string, opts business.ListOpts) ([]business.Episode, error) {
-	slog.Debug("Listing episodes", "user", userID, "limit", opts.Limit, "beforeID", opts.BeforeID, "castProfile", opts.CastProfileID)
+	slog.Debug("Listing episodes", "user", userID, "limit", opts.Limit, "beforeID", opts.BeforeID, "castProfile", opts.CastProfileID, "unlistenedOnly", opts.UnlistenedOnly)
 	query := episodeSelect + ` WHERE user_id = ?`
 	args := []any{userID}
 	if opts.BeforeID > 0 {
@@ -143,6 +143,9 @@ func (r *EpisodeRepository) List(userID string, opts business.ListOpts) ([]busin
 	if opts.CastProfileID != "" {
 		query += ` AND cast_profile_id = ?`
 		args = append(args, opts.CastProfileID)
+	}
+	if opts.UnlistenedOnly {
+		query += ` AND listened = 0`
 	}
 	query += ` ORDER BY episode_id DESC`
 	if opts.Limit > 0 {
@@ -194,6 +197,23 @@ func (r *EpisodeRepository) UsedContent(userID, castProfileID string) ([]string,
 	}
 	slog.Debug("Listed used content", "user", userID, "profile", castProfileID, "items", len(identities))
 	return identities, nil
+}
+
+// SetListened records whether the User has heard the Episode.
+func (r *EpisodeRepository) SetListened(userID string, id int64, listened bool) error {
+	slog.Info("Setting whether an episode is listened", "user", userID, "id", id, "listened", listened)
+	res, err := r.db.Exec(`UPDATE episodes SET listened = ? WHERE user_id = ? AND episode_id = ?`, listened, userID, id)
+	if err != nil {
+		return fmt.Errorf("set listened of episode %d: %w", id, err)
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set listened of episode %d: %w", id, err)
+	}
+	if changed == 0 {
+		return business.ErrEpisodeNotFound
+	}
+	return nil
 }
 
 // Get returns one Episode of the User with its Sections and Chapters.
@@ -504,7 +524,7 @@ func (r *EpisodeRepository) deleteRecordsBefore(t time.Time) (map[int64]string, 
 
 // episodeSelect reads the columns scan expects.
 const episodeSelect = `SELECT episode_id, user_id, cast_profile_id,
-	created_at, title, COALESCE(location, ''), COALESCE(duration, 0), COALESCE(failure, '')
+	created_at, title, COALESCE(location, ''), COALESCE(duration, 0), COALESCE(failure, ''), listened
 	FROM episodes LEFT JOIN audio_files USING (episode_id)`
 
 // scanner is what *sql.Row and *sql.Rows have in common.
@@ -516,7 +536,7 @@ func (r *EpisodeRepository) scan(row scanner) (business.Episode, error) {
 	var created, duration int64
 	var location string
 	err := row.Scan(&episode.ID, &episode.UserID, &episode.CastProfileID,
-		&created, &episode.Script.Title, &location, &duration, &episode.Failure)
+		&created, &episode.Script.Title, &location, &duration, &episode.Failure, &episode.Listened)
 	if err != nil {
 		return business.Episode{}, err
 	}
