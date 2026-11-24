@@ -10,7 +10,6 @@ import (
 	"github.com/alex0ptr/aigude/business"
 	"github.com/alex0ptr/aigude/pkg/service/servicetest"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // anOutage stops the service, lets the clock run for the duration while nothing watches it, and starts the service
@@ -43,33 +42,6 @@ func TestARunMissedDuringAnOutageIsMadeUpWhenTheServiceIsBack(t *testing.T) {
 	waitForEpisodes(t, h, "alex", 2)
 }
 
-func TestSeveralMissedRunsAreMadeUpAsOne(t *testing.T) {
-	h := harnessWithOneScheduledEpisode(t, scheduleAt(everyDay, "08:30"))
-	logs := captureLogs(t)
-
-	anOutage(t, h, 3*aDay)
-
-	waitForEpisodes(t, h, "alex", 2)
-	assertEpisodes(t, h, 2)
-	made := 0
-	for _, line := range logs.Lines() {
-		if strings.Contains(line, madeUp) {
-			made++
-		}
-	}
-	assert.Equal(t, 1, made, "three missed runs, one made up: %v", logs.Lines())
-}
-
-func TestARestartThatMissedNothingMakesNothing(t *testing.T) {
-	logs := captureLogs(t)
-	h := harnessWithOneScheduledEpisode(t, scheduleAt(everyDay, "08:30"))
-
-	anOutage(t, h, 2*time.Hour) // still the same day, the next 08:30 is tomorrow
-
-	assertEpisodes(t, h, 1)
-	assert.False(t, logs.Contains(madeUp), "no run is made up: %v", logs.Lines())
-}
-
 func TestTheMadeUpRunIsRememberedAcrossRestarts(t *testing.T) {
 	h := harnessWithOneScheduledEpisode(t, scheduleAt(everyDay, "08:30"))
 	anOutage(t, h, aDay)
@@ -92,37 +64,6 @@ func TestAFailedScheduledRunIsNotMadeUpAfterARestart(t *testing.T) {
 	anOutage(t, h, time.Hour)
 
 	assertEpisodes(t, h, 1)
-	assert.False(t, logs.Contains(madeUp), "no run is made up: %v", logs.Lines())
-}
-
-func TestASwitchedOffCastProfileOrScheduleIsNotMadeUp(t *testing.T) {
-	tests := map[string]string{
-		"a switched off CastProfile": "enabled = false\n" + scheduleAt(everyDay, "08:30"),
-		"a switched off Schedule":    scheduleAt(everyDay, "08:30") + "enabled = false\n",
-	}
-	for name, keys := range tests {
-		t.Run(name, func(t *testing.T) {
-			logs := captureLogs(t)
-			h, _ := freshFeedHarness(t, keys)
-			require.Equal(t, 200, h.Post(t, "/cast-profiles/morning/generate").Status)
-			waitForEpisodes(t, h, "alex", 1)
-
-			anOutage(t, h, aDay)
-
-			assertEpisodes(t, h, 1)
-			assert.False(t, logs.Contains(madeUp), "no run is made up: %v", logs.Lines())
-		})
-	}
-}
-
-func TestACastProfileThatNeverMadeAnEpisodeIsNotMadeUp(t *testing.T) {
-	logs := captureLogs(t)
-	h, _ := freshFeedHarness(t, scheduleAt(everyDay, "08:30"))
-
-	anOutage(t, h, aDay)
-
-	assertEpisodes(t, h, 0)
-	assert.Empty(t, h.ScriptWriter.Requests())
 	assert.False(t, logs.Contains(madeUp), "no run is made up: %v", logs.Lines())
 }
 

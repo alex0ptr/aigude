@@ -32,15 +32,15 @@ type Service struct {
 	db       *database.Database
 	episodes business.EpisodeRepository
 	handler  http.Handler
-	// generator produces the requested Episodes one at a time.
-	generator *generator
+	// productions produce the requested Episodes one at a time.
+	productions *business.Productions
 	// scheduler starts the Episodes of the Schedules when they are due.
-	scheduler *scheduler
+	scheduler *business.Scheduler
 	// maintenance keeps the crawl cache and the stored Episodes tidy.
-	maintenance *maintenance
+	maintenance *business.Maintenance
 
 	// watchDone, workerDone, schedulerDone and maintenanceDone are closed when the watching of the User Config, the
-	// generator's worker, the scheduler and the maintenance have ended.
+	// production worker, the scheduler and the maintenance have ended.
 	watchDone       <-chan struct{}
 	workerDone      <-chan struct{}
 	schedulerDone   <-chan struct{}
@@ -78,18 +78,20 @@ func New(s settings.Settings, writer business.ScriptWriter, tts business.TTS, cr
 	voice := business.Voice{Language: s.DefaultLanguage, Name: s.DefaultVoice}
 	producer := business.NewEpisodes(writer, tts, oggchapters.NewEncoder(pkgaudio.NewFFmpegConverter()), episodes, clock, loc, voice,
 		s.WordBudget, s.ArticleCharLimit, s.SectionPause)
-	gen := newGenerator(store, producer, cachingCrawler, clock)
+	profiles := configProfiles{store: store, crawler: cachingCrawler}
+	productions := business.NewProductions(producer, profiles, clock)
 	library := business.NewEpisodeLibrary(episodes, audio)
-	handler, err := web.New(s.UsersDir, store, library, gen, logs, loc)
+	requests := business.NewEpisodeRequests(productions, profiles, library)
+	handler, err := web.New(s.UsersDir, store, library, requests, productions, logs, loc)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("cannot start: %w", err)
 	}
 	slog.Info("Service assembled", "timeZone", s.TimeZone, "now", clock.Now().In(loc),
 		"usersDir", s.UsersDir, "dataDir", s.DataDir)
-	return &Service{settings: s, store: store, db: db, episodes: episodes, handler: handler, generator: gen,
-		scheduler:   newScheduler(store, gen, library, clock, loc, s.SchedulerMaxSleep),
-		maintenance: newMaintenance(cachingCrawler, library, s.EpisodeRetention, clock, s.SchedulerMaxSleep)}, nil
+	return &Service{settings: s, store: store, db: db, episodes: episodes, handler: handler, productions: productions,
+		scheduler:   business.NewScheduler(configSchedules{store: store}, productions, library, clock, loc, s.SchedulerMaxSleep),
+		maintenance: business.NewMaintenance(cachingCrawler, library, s.EpisodeRetention, clock, s.SchedulerMaxSleep)}, nil
 }
 
 // Episodes returns the persistence of produced Episodes.
@@ -118,9 +120,9 @@ func (s *Service) Start(ctx context.Context) error {
 		return fmt.Errorf("cannot start: %w", err)
 	}
 	s.watchDone = done
-	s.workerDone = s.generator.run(ctx)
-	s.schedulerDone = s.scheduler.run(ctx)
-	s.maintenanceDone = s.maintenance.run(ctx)
+	s.workerDone = s.productions.Run(ctx)
+	s.schedulerDone = s.scheduler.Run(ctx)
+	s.maintenanceDone = s.maintenance.Run(ctx)
 	return nil
 }
 

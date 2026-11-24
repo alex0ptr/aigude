@@ -95,6 +95,15 @@ type Source struct {
 	Retrieved time.Time
 }
 
+// Source returns the source with the number the Sections cite, which counts from 1 among Episode.Sources. A number
+// that names no source is not found.
+func (e Episode) Source(number int) (Source, bool) {
+	if number < 1 || number > len(e.Sources) {
+		return Source{}, false
+	}
+	return e.Sources[number-1], true
+}
+
 // ErrNoNewContent is returned by Create when the window holds no Content that no Episode of the CastProfile has used.
 // No Episode is made then.
 var ErrNoNewContent = errors.New("no unused content in the window")

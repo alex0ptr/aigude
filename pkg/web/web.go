@@ -45,10 +45,8 @@ type UserConfigSource interface {
 	Save(userID, text, baseHash string) error
 }
 
-// Generator queues the production of Episodes.
+// Generator tells how the production of Episodes is going.
 type Generator interface {
-	// Generate asks for an Episode of the User's CastProfile; it is produced when its turn comes.
-	Generate(userID, castProfileID string) error
 	// Generating tells whether an Episode of the User's CastProfile is queued or being produced.
 	Generating(userID, castProfileID string) bool
 	// NothingNew tells whether the latest production for the User's CastProfile found no unused Content, and when it
@@ -117,6 +115,8 @@ type Handler struct {
 	source UserConfigSource
 	// library is what the interface does with the produced Episodes.
 	library *business.EpisodeLibrary
+	// requests is how the interface asks for new Episodes.
+	requests *business.EpisodeRequests
 	// generator produces Episodes on request.
 	generator Generator
 	// logs are the log lines shown in the folding log.
@@ -137,7 +137,7 @@ type Handler struct {
 }
 
 // New parses the embedded templates and builds the router.
-func New(usersDir string, source UserConfigSource, library *business.EpisodeLibrary, generator Generator, logs LogSource, loc *time.Location) (*Handler, error) {
+func New(usersDir string, source UserConfigSource, library *business.EpisodeLibrary, requests *business.EpisodeRequests, generator Generator, logs LogSource, loc *time.Location) (*Handler, error) {
 	index, err := template.ParseFS(templateFS, "templates/layout.html", "templates/index.html", "templates/episode_list.html", "templates/generate.html", "templates/usage.html", "templates/listened.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
@@ -164,7 +164,7 @@ func New(usersDir string, source UserConfigSource, library *business.EpisodeLibr
 	}
 
 	h := &Handler{
-		usersDir: usersDir, source: source, library: library, generator: generator, logs: logs, loc: loc,
+		usersDir: usersDir, source: source, library: library, requests: requests, generator: generator, logs: logs, loc: loc,
 		index: index, episode: episode, fragment: fragment, sourcePage: sourcePage, config: config, mux: http.NewServeMux(), root: http.NewServeMux(),
 	}
 	h.mux.HandleFunc("GET /{$}", h.showIndex)

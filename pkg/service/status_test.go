@@ -146,3 +146,18 @@ func TestRetryWhileTheCastProfileIsBeingProducedKeepsTheFailedEpisode(t *testing
 	assert.Equal(t, 409, retried.Status)
 	assert.Equal(t, failed.ID, h.Episode(t, "alex", failed.ID).ID, "the failure and its reason are still there")
 }
+
+func TestGenerateForAnUnknownCastProfileIsNotFoundAndRetryAfterItsRemovalIsAConflict(t *testing.T) {
+	h := servicetest.Start(t, twoUsers()...)
+	retired := episodeOf("alex", "", h.Clock.Now())
+	retired.CastProfileID = "retired"
+	failed := h.AddFailedEpisode(t, retired, "boom")
+
+	unknown := h.Post(t, "/cast-profiles/nope/generate")
+	retried := h.Post(t, fmt.Sprintf("/episodes/%d/retry", failed.ID))
+
+	assert.Equal(t, 404, unknown.Status)
+	assert.Equal(t, 409, retried.Status, "the CastProfile of the Episode is not in the User Config any more")
+	assert.Equal(t, failed.ID, h.Episode(t, "alex", failed.ID).ID, "the failed Episode stays")
+	assert.Empty(t, h.ScriptWriter.Requests(), "nothing was queued")
+}

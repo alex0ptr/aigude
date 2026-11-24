@@ -206,8 +206,8 @@ func (h *Handler) showEpisode(w http.ResponseWriter, r *http.Request) {
 	for _, section := range episode.Script.Sections {
 		view := sectionView{Heading: section.Heading, Paragraphs: paragraphs(section.Body)}
 		for _, number := range section.Sources {
-			if number >= 1 && number <= len(episode.Sources) {
-				view.Sources = append(view.Sources, sourceLink{Number: number, Title: episode.Sources[number-1].Title})
+			if source, found := episode.Source(number); found {
+				view.Sources = append(view.Sources, sourceLink{Number: number, Title: source.Title})
 			}
 		}
 		data.Episode.Script = append(data.Episode.Script, view)
@@ -233,12 +233,12 @@ func (h *Handler) showSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	number, err := strconv.Atoi(r.PathValue("number"))
-	if err != nil || number < 1 || number > len(episode.Sources) {
+	source, found := episode.Source(number)
+	if err != nil || !found {
 		slog.Debug("Source not found", "user", user.ID, "id", episode.ID, "number", r.PathValue("number"))
 		http.NotFound(w, r)
 		return
 	}
-	source := episode.Sources[number-1]
 	view := sourceView{
 		Title: source.Title, Name: source.Name, Link: httpLink(source.Link), Retrieved: h.formatTime(source.Retrieved),
 		Text: markdown(source.Text),
@@ -335,33 +335,26 @@ func (h *Handler) deleteEpisode(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// retryEpisode asks for a new Episode of the CastProfile of a failed Episode of the selected User. Once the request is
-// accepted the failed Episode is removed, so that the new attempt takes its place.
+// retryEpisode asks for a new Episode in place of a failed Episode of the selected User.
 func (h *Handler) retryEpisode(w http.ResponseWriter, r *http.Request) {
 	user := accessOf(r).selectedUser(r)
-	episode, ok := h.episodeNamedInPath(w, r, user, h.library.GetFailed)
-	if !ok {
+	id, ok := episodeID(r)
+	if user == nil || !ok {
+		http.NotFound(w, r)
 		return
 	}
-	if _, ok := user.CastProfile(episode.CastProfileID); !ok {
-		slog.Warn("Retry of an Episode whose CastProfile is gone", "user", user.ID, "id", episode.ID, "profile", episode.CastProfileID)
+	switch err := h.requests.Retry(user.ID, id); {
+	case err == nil:
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	case errors.Is(err, business.ErrCastProfileNotFound):
 		http.Error(w, "the CastProfile of this Episode has been removed from the User Config", http.StatusConflict)
-		return
-	}
-	if h.generator.Generating(user.ID, episode.CastProfileID) {
-		slog.Info("Retry refused, an Episode of the CastProfile is being produced", "user", user.ID, "id", episode.ID)
+	case errors.Is(err, business.ErrAlreadyProducing):
 		http.Error(w, "an Episode of this CastProfile is being produced right now", http.StatusConflict)
-		return
-	}
-	if err := h.generator.Generate(user.ID, episode.CastProfileID); err != nil {
-		slog.Error("Retry request failed", "user", user.ID, "id", episode.ID, "error", err)
+	case errors.Is(err, business.ErrEpisodeNotFound):
+		answerEpisodeError(w, r, err)
+	default:
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
 	}
-	if err := h.library.Delete(user.ID, episode.ID); err != nil {
-		slog.Error("Removing the failed Episode after a retry failed", "user", user.ID, "id", episode.ID, "error", err)
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // generate asks for an Episode of one of the selected User's CastProfiles and returns to the overview.
@@ -373,17 +366,15 @@ func (h *Handler) generate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if _, ok := user.CastProfile(id); !ok {
-		slog.Debug("Generate requested for an unknown CastProfile", "profile", id)
+	switch err := h.requests.Request(user.ID, id); {
+	case err == nil:
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	case errors.Is(err, business.ErrCastProfileNotFound):
 		http.NotFound(w, r)
-		return
-	}
-	if err := h.generator.Generate(user.ID, id); err != nil {
+	default:
 		slog.Error("Generate request failed", "user", user.ID, "profile", id, "error", err)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // showGeneration answers the polling of a CastProfile's card: the running state while an Episode of it is queued or

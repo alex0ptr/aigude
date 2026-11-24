@@ -13,9 +13,10 @@ import (
 // the EpisodeLibrary are tested without help from the repository.
 type handingOut struct {
 	EpisodeRepository
-	episodes map[int64]Episode
-	listened map[int64]bool
-	deleted  []int64
+	episodes  map[int64]Episode
+	listened  map[int64]bool
+	deleted   []int64
+	deleteErr error
 }
 
 func newHandingOut(episodes ...Episode) *handingOut {
@@ -41,7 +42,7 @@ func (h *handingOut) SetListened(_ string, id int64, listened bool) error {
 
 func (h *handingOut) Delete(_ string, id int64) error {
 	h.deleted = append(h.deleted, id)
-	return nil
+	return h.deleteErr
 }
 
 // recordingAudio is an AudioStore that remembers which locations were opened.
@@ -59,7 +60,7 @@ var modified = time.Date(2026, time.October, 29, 12, 0, 0, 0, time.UTC)
 
 var (
 	ready  = Episode{ID: 1, UserID: "alex", AudioLocation: "1-alex.ogg"}
-	failed = Episode{ID: 2, UserID: "alex", Failure: "boom"}
+	failed = Episode{ID: 2, UserID: "alex", CastProfileID: "morning", Failure: "boom"}
 )
 
 func TestAnEpisodeOfAnotherUserIsNotFoundEvenWhenTheRepositoryHandsItOut(t *testing.T) {

@@ -127,3 +127,27 @@ type AudioEncoder interface {
 	// Encode returns the speech as OGG/Opus audio with the Chapters written into it, where ordinary players show them.
 	Encode(speech Speech, chapters []Chapter) ([]byte, error)
 }
+
+// CastProfiles tells which CastProfiles the Users have defined in their User Config right now.
+type CastProfiles interface {
+	// Exists tells whether the User has a CastProfile with the Id.
+	Exists(userID, castProfileID string) bool
+}
+
+// CastProfileSource hands out the CastProfiles of the Users as they are defined right now, ready to produce Episodes
+// from.
+type CastProfileSource interface {
+	// CastProfile returns the User and their CastProfile with the Id, and false when there is no such User or
+	// CastProfile.
+	CastProfile(userID, castProfileID string) (User, CastProfile, bool)
+}
+
+// ScheduleSource hands out the Schedules of the CastProfiles of all Users as the User Config defines them.
+type ScheduleSource interface {
+	// Schedules returns the CastProfiles of all Users with their Schedules as defined right now. What it returns is
+	// not changed afterwards.
+	Schedules() []ScheduledProfile
+	// Changes returns a channel that receives a signal whenever the Schedules may have changed, and a function that
+	// stops the signals. Signals coalesce: several changes before the receiver looks make one.
+	Changes() (changes <-chan struct{}, stop func())
+}

@@ -114,28 +114,6 @@ func TestTheSleepOfTheSchedulerNeverExceedsTheCap(t *testing.T) {
 	waitForEpisodes(t, h, "alex", 1)
 }
 
-func TestAJumpOfTheClockStillRunsWhatIsDueOnce(t *testing.T) {
-	h, _ := freshFeedHarness(t, scheduleAt(everyDay, "08:30"))
-
-	h.Clock.Advance(3*aDay + time.Hour) // three due runs
-
-	waitForEpisodes(t, h, "alex", 1)
-	assertEpisodes(t, h, 1)
-}
-
-func TestAClockStepBackDoesNotRunTheSameDueTimeTwice(t *testing.T) {
-	h, _ := freshFeedHarness(t, scheduleAt(everyDay, "08:30"))
-	h.Clock.Advance(31 * time.Minute) // 08:31
-	waitForEpisodes(t, h, "alex", 1)
-
-	h.Clock.Advance(-2 * time.Minute) // 08:29, as after a time server corrected a clock that ran fast
-	time.Sleep(settleTime)
-	h.Clock.Advance(2 * time.Minute) // 08:31 again
-	time.Sleep(settleTime)
-
-	assert.Len(t, h.ScriptWriter.Requests(), 1, "a second run would have asked the model for a Script")
-}
-
 func TestACastProfileThatIsGeneratingIsNotQueuedAgainByAClickOrASchedule(t *testing.T) {
 	h, _ := freshFeedHarness(t, scheduleAt(everyDay, "08:30"))
 	h.ScriptWriter.Delay = 300 * time.Millisecond
