@@ -101,8 +101,6 @@ type page struct {
 	NothingUnlistened bool
 	// Episode is the Episode shown on its own page.
 	Episode episodeView
-	// Source is the source shown on its own page.
-	Source sourceView
 	// Editor is the User Config editor.
 	Editor editorView
 }
@@ -126,8 +124,6 @@ type Handler struct {
 	index    *template.Template
 	episode  *template.Template
 	fragment *template.Template
-	// sourcePage shows one source on a page of its own.
-	sourcePage *template.Template
 	// config is the page of the User Config editor.
 	config *template.Template
 	// mux routes the pages of the interface, which sit behind the check of the proxy headers.
@@ -150,10 +146,6 @@ func New(usersDir string, source UserConfigSource, library *business.EpisodeLibr
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
-	sourcePage, err := template.ParseFS(templateFS, "templates/layout.html", "templates/source_page.html", "templates/source.html")
-	if err != nil {
-		return nil, fmt.Errorf("parse templates: %w", err)
-	}
 	config, err := template.ParseFS(templateFS, "templates/layout.html", "templates/config.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
@@ -165,7 +157,7 @@ func New(usersDir string, source UserConfigSource, library *business.EpisodeLibr
 
 	h := &Handler{
 		usersDir: usersDir, source: source, library: library, requests: requests, generator: generator, logs: logs, loc: loc,
-		index: index, episode: episode, fragment: fragment, sourcePage: sourcePage, config: config, mux: http.NewServeMux(), root: http.NewServeMux(),
+		index: index, episode: episode, fragment: fragment, config: config, mux: http.NewServeMux(), root: http.NewServeMux(),
 	}
 	h.mux.HandleFunc("GET /{$}", h.showIndex)
 	h.mux.HandleFunc("POST /user", h.selectUser)

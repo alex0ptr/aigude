@@ -525,7 +525,13 @@ body:has(.demo-bar) .app { padding-bottom: 72px; }
 .script-section p { margin: 0 0 10px; max-width: 70ch; }
 .sources { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .sources li { list-style: none; margin: 0; padding: 0; }
-.sources a { font-family: var(--font-mono); font-size: 0.78rem; color: var(--cyan); }
+.source-link {
+  display: inline; width: auto; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none;
+  font-family: var(--font-mono); font-size: 0.78rem; text-align: left; color: var(--cyan); cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--pico-primary-underline); text-underline-offset: 3px;
+}
+.source-link:hover, .source-link:focus-visible { color: var(--pico-primary-hover); text-decoration-color: currentColor; }
+.source-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .source-dialog { max-width: min(760px, 92vw); max-height: 85vh; overflow: auto; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 0; }
 .source-dialog::backdrop { background: rgba(13, 2, 33, 0.8); }
 .source { margin: 0; padding: 24px; }

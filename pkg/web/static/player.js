@@ -122,7 +122,7 @@
     if (!listened || listened.value !== "true") {
       return;
     }
-    htmx.ajax("POST", form.getAttribute("action"), { source: form, target: form, swap: "outerHTML", values: { listened: "true" } });
+    htmx.ajax("POST", form.getAttribute("hx-post"), { source: form, target: form, swap: "outerHTML", values: { listened: "true" } });
   }
 
   function seek(audio, t) {

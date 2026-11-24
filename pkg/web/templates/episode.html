@@ -56,9 +56,9 @@
     {{end}}
     {{if .Sources}}
     <ul class="sources" aria-label="Sources">
-      {{range .Sources}}<li data-testid="source"><a href="/episodes/{{$.Episode.ID}}/sources/{{.Number}}" hx-boost="false"
+      {{range .Sources}}<li data-testid="source"><button type="button" class="source-link"
         hx-get="/episodes/{{$.Episode.ID}}/sources/{{.Number}}" hx-target="#source-dialog" hx-swap="innerHTML"
-        hx-on::after-request="if (event.detail.successful) document.getElementById('source-dialog').showModal()">{{.Title}}</a></li>
+        hx-on::after-request="if (event.detail.successful) document.getElementById('source-dialog').showModal()">{{.Title}}</button></li>
       {{end}}
     </ul>
     {{end}}

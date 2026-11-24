@@ -223,11 +223,10 @@ func (h *Handler) showEpisode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// showSource answers with the popup of one source of an Episode of the selected User: as a fragment for the page that
-// asks through HTMX, as a page of its own otherwise.
+// showSource answers with the popup of one source of an Episode of the selected User as a fragment, which the page
+// puts in its dialog.
 func (h *Handler) showSource(w http.ResponseWriter, r *http.Request) {
-	a := accessOf(r)
-	user := a.selectedUser(r)
+	user := accessOf(r).selectedUser(r)
 	episode, ok := h.episodeNamedInPath(w, r, user, h.library.GetReady)
 	if !ok {
 		return
@@ -244,17 +243,8 @@ func (h *Handler) showSource(w http.ResponseWriter, r *http.Request) {
 		Text: markdown(source.Text),
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if r.Header.Get("HX-Request") == "true" {
-		if err := h.fragment.ExecuteTemplate(w, "source", view); err != nil {
-			slog.Error("Render source failed", "id", episode.ID, "number", number, "error", err)
-		}
-		return
-	}
-	data := h.newPage(a, user)
-	data.Episode = episodeView{episodeRow: h.newEpisodeRow(user, episode, a.demo)}
-	data.Source = view
-	if err := h.sourcePage.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("Render source page failed", "id", episode.ID, "number", number, "error", err)
+	if err := h.fragment.ExecuteTemplate(w, "source", view); err != nil {
+		slog.Error("Render source failed", "id", episode.ID, "number", number, "error", err)
 	}
 }
 
@@ -284,7 +274,7 @@ func (h *Handler) serveAudio(w http.ResponseWriter, r *http.Request) {
 
 // setListened sets whether an Episode of the selected User is Listened to the value the form names in listened, true or
 // false. The state is sent rather than switched, so that the automatic mark of the player and a click cannot undo
-// each other. The marker comes back as a fragment for HTMX, otherwise the browser returns to the page it came from.
+// each other. The marker comes back as a fragment that HTMX puts in place of the old one.
 func (h *Handler) setListened(w http.ResponseWriter, r *http.Request) {
 	user := accessOf(r).selectedUser(r)
 	id, ok := episodeID(r)
@@ -302,23 +292,10 @@ func (h *Handler) setListened(w http.ResponseWriter, r *http.Request) {
 	if answerEpisodeError(w, r, err) {
 		return
 	}
-	if r.Header.Get("HX-Request") != "true" {
-		http.Redirect(w, r, pathOfReferer(r), http.StatusSeeOther)
-		return
-	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.fragment.ExecuteTemplate(w, "listened", h.newEpisodeRow(user, episode, false)); err != nil {
 		slog.Error("Render listened marker failed", "id", episode.ID, "error", err)
 	}
-}
-
-// pathOfReferer is the path and query of the page the request came from when it is a page of this service, else "/".
-func pathOfReferer(r *http.Request) string {
-	referer, err := url.Parse(r.Referer())
-	if err != nil || referer.Host != r.Host || !strings.HasPrefix(referer.Path, "/") || strings.HasPrefix(referer.Path, "//") {
-		return "/"
-	}
-	return referer.RequestURI()
 }
 
 // deleteEpisode removes an Episode of the selected User and returns to the list.

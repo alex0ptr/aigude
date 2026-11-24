@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var htmx = map[string]string{"HX-Request": "true"}
-
 func listenedPath(id int64) string { return episodePath(id) + "/listened" }
 
 func TestTheListShowsUnlistenedAndFailedEpisodesUntilAllIsAsked(t *testing.T) {
@@ -75,10 +73,10 @@ func TestTheMarkerSetsTheStateInBothDirectionsAndTheFragmentShowsIt(t *testing.T
 	h := servicetest.Start(t, twoUsers()...)
 	episode := h.AddEpisode(t, episodeOf("alex", "Mine", h.Clock.Now()), []byte("a"))
 
-	heard := h.Send(t, http.MethodPost, listenedPath(episode.ID), htmx, url.Values{"listened": {"true"}})
-	heardAgain := h.Send(t, http.MethodPost, listenedPath(episode.ID), htmx, url.Values{"listened": {"true"}})
+	heard := h.Send(t, http.MethodPost, listenedPath(episode.ID), nil, url.Values{"listened": {"true"}})
+	heardAgain := h.Send(t, http.MethodPost, listenedPath(episode.ID), nil, url.Values{"listened": {"true"}})
 	stateAfterYes := h.Episode(t, "alex", episode.ID).Listened
-	reset := h.Send(t, http.MethodPost, listenedPath(episode.ID), htmx, url.Values{"listened": {"false"}})
+	reset := h.Send(t, http.MethodPost, listenedPath(episode.ID), nil, url.Values{"listened": {"false"}})
 
 	assert.Equal(t, http.StatusOK, heard.Status)
 	assert.Contains(t, heard.Body, "Listened. Mark as not listened.")
@@ -88,17 +86,6 @@ func TestTheMarkerSetsTheStateInBothDirectionsAndTheFragmentShowsIt(t *testing.T
 	assert.False(t, h.Episode(t, "alex", episode.ID).Listened)
 }
 
-func TestWithoutHtmxTheMarkerReturnsToThePageItCameFrom(t *testing.T) {
-	h := servicetest.Start(t, twoUsers()...)
-	episode := h.AddEpisode(t, episodeOf("alex", "Mine", h.Clock.Now()), []byte("a"))
-
-	page := h.PostForm(t, listenedPath(episode.ID), url.Values{"listened": {"true"}}, episodePath(episode.ID))
-
-	assert.Equal(t, http.StatusOK, page.Status)
-	assert.Contains(t, page.Body, "Listened. Mark as not listened.", "back on the Episode page")
-	assert.True(t, h.Episode(t, "alex", episode.ID).Listened)
-}
-
 func TestTheStateCannotBeSetForAnEpisodeThatFailedOrIsAnotherUsersOrWithAnUnknownState(t *testing.T) {
 	h := servicetest.Start(t, twoUsers()...)
 	failed := h.AddFailedEpisode(t, episodeOf("alex", "", h.Clock.Now()), "boom")
@@ -106,9 +93,9 @@ func TestTheStateCannotBeSetForAnEpisodeThatFailedOrIsAnotherUsersOrWithAnUnknow
 	mine := h.AddEpisode(t, episodeOf("alex", "Mine", h.Clock.Now()), []byte("a"))
 	yes := url.Values{"listened": {"true"}}
 
-	onFailed := h.Send(t, http.MethodPost, listenedPath(failed.ID), htmx, yes)
-	onForeign := h.Send(t, http.MethodPost, listenedPath(beas.ID), htmx, yes)
-	unknown := h.Send(t, http.MethodPost, listenedPath(mine.ID), htmx, url.Values{"listened": {"maybe"}})
+	onFailed := h.Send(t, http.MethodPost, listenedPath(failed.ID), nil, yes)
+	onForeign := h.Send(t, http.MethodPost, listenedPath(beas.ID), nil, yes)
+	unknown := h.Send(t, http.MethodPost, listenedPath(mine.ID), nil, url.Values{"listened": {"maybe"}})
 
 	assert.Equal(t, http.StatusNotFound, onFailed.Status)
 	assert.Equal(t, http.StatusNotFound, onForeign.Status)
