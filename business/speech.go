@@ -30,7 +30,7 @@ func (e *Episodes) speak(script Script, profile CastProfile) (joinedSpeech, Usag
 	var joined joinedSpeech
 	var usage Usage
 	for i, section := range script.Sections {
-		slog.Debug("Speaking section", "heading", section.Heading, "language", voice.Language, "voice", voice.Name)
+		slog.Debug("Speaking section", "heading", section.Heading, "language", voice.Language, "voice", voice.Name, "model", voice.Model)
 		speech, spoken, err := e.synthesize(section.Body, voice)
 		usage = usage.Add(spoken)
 		if err != nil {

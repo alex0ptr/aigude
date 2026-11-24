@@ -121,3 +121,35 @@ func TestAnEncoderThatFailsFailsTheEpisode(t *testing.T) {
 	assert.Empty(t, repository.saved, "no Episode with audio")
 	require.Len(t, repository.failed, 1)
 }
+
+// voiceTTS remembers the Voices it was asked to speak in.
+type voiceTTS struct{ voices []Voice }
+
+func (v *voiceTTS) Synthesize(_ string, voice Voice) (Speech, Usage, error) {
+	v.voices = append(v.voices, voice)
+	return secondsOfSpeech(1), nil, nil
+}
+
+func TestSpeakTakesEveryPartOfTheVoiceFromTheCastProfileOrElseFromTheDefault(t *testing.T) {
+	defaults := Voice{Language: "de-DE", Name: "Achernar", Model: "default-model"}
+	cases := []struct {
+		name    string
+		profile Voice
+		want    Voice
+	}{
+		{"nothing set", Voice{}, defaults},
+		{"model only", Voice{Model: "lite-model"}, Voice{Language: "de-DE", Name: "Achernar", Model: "lite-model"}},
+		{"everything set", Voice{Language: "en-US", Name: "Kore", Model: "lite-model"}, Voice{Language: "en-US", Name: "Kore", Model: "lite-model"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tts := &voiceTTS{}
+			episodes := testEpisodesWith(&fakeWriter{}, tts, &recordingEncoder{}, &recordingRepository{}, 0)
+
+			_, _, err := episodes.speak(Script{Sections: []Section{{Heading: "h", Body: "1 s"}}}, CastProfile{Voice: c.profile})
+
+			require.NoError(t, err)
+			assert.Equal(t, []Voice{c.want}, tts.voices)
+		})
+	}
+}

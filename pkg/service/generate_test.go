@@ -123,13 +123,14 @@ func TestTheScriptIsStoredWithTheEpisode(t *testing.T) {
 	assert.Equal(t, "Das ist die Nachricht.", stored.Script.Sections[1].Body)
 }
 
-func TestLanguageAndVoiceComeFromTheProfileAndOtherwiseFromTheServiceDefaults(t *testing.T) {
+func TestLanguageVoiceAndModelComeFromTheProfileAndOtherwiseFromTheServiceDefaults(t *testing.T) {
 	tests := []struct {
 		name, profileKeys, text, rulesIn string
 		voice                            business.Voice
 	}{
-		{"the profile wins", "language = \"en-GB\"\nvoice = \"Kore\"", "Hello.", "English", business.Voice{Language: "en-GB", Name: "Kore"}},
-		{"the service defaults apply", "", "Hallo.", "German", business.Voice{Language: "de-DE", Name: "Achernar"}},
+		{"the profile wins", "language = \"en-GB\"\nvoice = \"Kore\"\ntts_model = \"gemini-3.8-flash-tts\"", "Hello.", "English",
+			business.Voice{Language: "en-GB", Name: "Kore", Model: "gemini-3.8-flash-tts"}},
+		{"the service defaults apply", "", "Hallo.", "German", business.Voice{Language: "de-DE", Name: "Achernar", Model: "gemini-3.8-flash-lite-tts"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

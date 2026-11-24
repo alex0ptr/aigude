@@ -152,13 +152,13 @@ func (e *Episodes) Create(user User, profile CastProfile) (Episode, error) {
 	}
 	if err != nil {
 		slog.Error("Producing the episode failed", "user", user.ID, "profile", profile.ID, "error", err)
-		slog.Info("Usage of the failed episode", "user", user.ID, "profile", profile.ID, "usage", saved.Usage)
+		slog.Info("Usage of the failed episode", "user", user.ID, "profile", profile.ID, "ttsModel", profile.Voice.Or(e.voice).Model, "usage", saved.Usage)
 		if _, saveErr := e.repository.SaveFailed(saved, err.Error()); saveErr != nil {
 			slog.Error("Recording the failed episode failed", "user", user.ID, "profile", profile.ID, "error", saveErr)
 		}
 		return Episode{}, err
 	}
-	slog.Info("Episode ready", "user", user.ID, "id", saved.ID, "duration", saved.Duration, "usage", saved.Usage)
+	slog.Info("Episode ready", "user", user.ID, "id", saved.ID, "duration", saved.Duration, "ttsModel", profile.Voice.Or(e.voice).Model, "usage", saved.Usage)
 	return saved, nil
 }
 

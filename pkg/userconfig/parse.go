@@ -50,6 +50,7 @@ type rawCastProfile struct {
 	Prompt        string                     `toml:"prompt"`
 	Language      string                     `toml:"language"`
 	Voice         string                     `toml:"voice"`
+	TTSModel      string                     `toml:"tts_model"`
 	Enabled       *bool                      `toml:"enabled"`
 	Schedules     []rawSchedule              `toml:"schedules"`
 }
@@ -167,7 +168,7 @@ func validateCastProfile(id string, cp rawCastProfile, loc *locator, add func(po
 
 	out := CastProfile{
 		ID: id, DisplayName: cp.DisplayName, MaxLookback: lookback, WordBudget: wordBudget,
-		Prompt: cp.Prompt, Language: cp.Language, Voice: cp.Voice, Enabled: enabled(cp.Enabled),
+		Prompt: cp.Prompt, Language: cp.Language, Voice: cp.Voice, TTSModel: cp.TTSModel, Enabled: enabled(cp.Enabled),
 	}
 	for _, subID := range orderedIDs(loc.order[pathKey("cast_profiles", id, "subscriptions")], cp.Subscriptions) {
 		out.Subscriptions = append(out.Subscriptions, validateSubscription(id, subID, cp.Subscriptions[subID], loc, add))

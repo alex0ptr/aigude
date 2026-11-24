@@ -7,10 +7,12 @@ type User struct {
 	ID string
 }
 
-// Voice is how Episodes are spoken: a language (a BCP-47 code such as de-DE) and the name of a speech voice.
+// Voice is how Episodes are spoken: a language (a BCP-47 code such as de-DE), the name of a speech voice and the
+// model that speaks.
 type Voice struct {
 	Language string
 	Name     string
+	Model    string
 }
 
 // Or returns the Voice with every part it leaves empty taken from the fallback.
@@ -20,6 +22,9 @@ func (v Voice) Or(fallback Voice) Voice {
 	}
 	if v.Name == "" {
 		v.Name = fallback.Name
+	}
+	if v.Model == "" {
+		v.Model = fallback.Model
 	}
 	return v
 }

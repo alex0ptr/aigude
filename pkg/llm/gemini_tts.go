@@ -13,8 +13,9 @@ import (
 	"google.golang.org/genai"
 )
 
-// DefaultGeminiTTSModel is the stable Gemini 3.8 Flash text-to-speech model.
-const DefaultGeminiTTSModel = "gemini-3.8-flash-tts"
+// DefaultGeminiTTSModel is the Gemini 3.8 Flash Lite text-to-speech model, the one that speaks unless a setting or a
+// CastProfile names another.
+const DefaultGeminiTTSModel = "gemini-3.8-flash-lite-tts"
 
 // defaultPCMSampleRate is the rate assumed when Gemini's response carries none.
 const defaultPCMSampleRate = 24000
@@ -25,21 +26,20 @@ const defaultPCMSampleRate = 24000
 //
 // Example usage:
 //
-//	tts, err := llm.NewGeminiTTS(apiKey, llm.DefaultGeminiTTSModel)
-//	speech, err := tts.Synthesize("Hallo, willkommen zur Folge!", business.Voice{Language: "de-DE", Name: "Achernar"})
+//	tts, err := llm.NewGeminiTTS(apiKey)
+//	speech, err := tts.Synthesize("Hallo, willkommen zur Folge!",
+//		business.Voice{Language: "de-DE", Name: "Achernar", Model: llm.DefaultGeminiTTSModel})
 type GeminiTTS struct {
 	client *genai.Client
 	ctx    context.Context
-	model  string
 }
 
 var _ business.TTS = (*GeminiTTS)(nil)
 
 // NewGeminiTTS creates a new Gemini TTS client.
-// apiKey is the Google AI API key.
-// model is the TTS model to use, e.g. DefaultGeminiTTSModel.
-func NewGeminiTTS(apiKey, model string) (*GeminiTTS, error) {
-	slog.Debug("Creating Gemini TTS client", "model", model)
+// apiKey is the Google AI API key. The model that speaks comes with each call, in its Voice.
+func NewGeminiTTS(apiKey string) (*GeminiTTS, error) {
+	slog.Debug("Creating Gemini TTS client")
 
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -51,16 +51,16 @@ func NewGeminiTTS(apiKey, model string) (*GeminiTTS, error) {
 		return nil, fmt.Errorf("failed to create Gemini TTS client: %w", err)
 	}
 
-	return &GeminiTTS{client: client, ctx: ctx, model: model}, nil
+	return &GeminiTTS{client: client, ctx: ctx}, nil
 }
 
-// Synthesize speaks the text in one Gemini call. The Voice names a BCP-47 language (e.g. "de-DE") and one of
-// Gemini's prebuilt voices (e.g. "Achernar"). The model takes the text as a verbatim transcript, so nothing but what
-// is to be spoken goes into it.
+// Synthesize speaks the text in one Gemini call. The Voice names a BCP-47 language (e.g. "de-DE"), one of
+// Gemini's prebuilt voices (e.g. "Achernar") and the model that speaks. The model takes the text as a verbatim
+// transcript, so nothing but what is to be spoken goes into it.
 func (g *GeminiTTS) Synthesize(text string, voice business.Voice) (business.Speech, business.Usage, error) {
-	slog.Debug("Synthesizing speech", "textLength", len(text), "language", voice.Language, "voice", voice.Name)
+	slog.Debug("Synthesizing speech", "textLength", len(text), "language", voice.Language, "voice", voice.Name, "model", voice.Model)
 
-	resp, err := g.client.Models.GenerateContent(g.ctx, g.model, genai.Text(text), &genai.GenerateContentConfig{
+	resp, err := g.client.Models.GenerateContent(g.ctx, voice.Model, genai.Text(text), &genai.GenerateContentConfig{
 		ResponseModalities: []string{"AUDIO"},
 		SpeechConfig: &genai.SpeechConfig{
 			LanguageCode: voice.Language,

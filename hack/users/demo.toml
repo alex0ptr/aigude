@@ -64,6 +64,12 @@ language = "en-US"
 # Optional. Voice of the speech; without it the service default voice is used.
 # voice = "Achernar"
 
+# Optional. Gemini model that speaks the Episodes of this CastProfile; without it
+# the service setting tts_model applies ("gemini-3.8-flash-lite-tts"). The name
+# is not checked in advance: a model that does not exist shows up as a failed
+# Episode.
+# tts_model = "gemini-3.8-flash-tts"
+
 # Optional, default true. false switches the whole CastProfile off: none of its
 # Schedules runs.
 # enabled = false

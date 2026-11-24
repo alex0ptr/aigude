@@ -1,9 +1,14 @@
 package llm
 
 import (
+	"context"
 	"encoding/binary"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/alex0ptr/aigude/business"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genai"
@@ -64,4 +69,23 @@ func TestSpeechFromResponseFailsWithoutAudio(t *testing.T) {
 	_, _, err := speechFromResponse(&genai.GenerateContentResponse{})
 
 	require.Error(t, err)
+}
+
+func TestSynthesizeAsksTheModelOfTheVoice(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = json.NewEncoder(w).Encode(responseWith("audio/wav", wavOf([]byte{1, 0}, 24000)))
+	}))
+	defer server.Close()
+	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
+		APIKey: "key", Backend: genai.BackendGeminiAPI, HTTPOptions: genai.HTTPOptions{BaseURL: server.URL},
+	})
+	require.NoError(t, err)
+	tts := &GeminiTTS{client: client, ctx: context.Background()}
+
+	_, _, err = tts.Synthesize("Hallo", business.Voice{Language: "de-DE", Name: "Achernar", Model: "gemini-3.8-flash-lite-tts"})
+
+	require.NoError(t, err)
+	assert.Contains(t, path, "/models/gemini-3.8-flash-lite-tts:generateContent")
 }

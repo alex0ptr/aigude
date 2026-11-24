@@ -55,11 +55,12 @@ crawl_cache_ttl = "240h"
 # the key is then optional and only sent when set.
 firecrawl_url = "https://api.firecrawl.dev"
 
-# The Gemini model that writes the Script and the one that speaks it. The model
+# The Gemini model that writes the Script and the one that speaks it. A CastProfile
+# can name its own speaking model with tts_model in its User Config. The model
 # is not checked in advance: models come and go, and a name that does not exist
 # shows up as an error when the first Episode is produced.
 script_model = "gemini-flash-latest"
-tts_model = "gemini-3.8-flash-tts"
+tts_model = "gemini-3.8-flash-lite-tts"
 
 # Longest the background work sleeps before it checks the wall clock again.
 scheduler_max_sleep = "1h"

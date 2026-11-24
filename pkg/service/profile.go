@@ -13,7 +13,7 @@ import (
 func castProfileOf(user userconfig.User, p userconfig.CastProfile, crawler business.Crawler) business.CastProfile {
 	profile := business.CastProfile{
 		ID: p.ID, Name: p.DisplayName, UserPrompt: p.Prompt, MaxLookback: p.MaxLookback, WordBudget: p.WordBudget,
-		Voice: business.Voice{Language: p.Language, Name: p.Voice},
+		Voice: business.Voice{Language: p.Language, Name: p.Voice, Model: p.TTSModel},
 	}
 	for _, s := range p.Subscriptions {
 		switch s.Kind {

@@ -77,7 +77,7 @@ func runServe(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	tts, err := llm.NewGeminiTTS(secrets.GeminiAPIKey, cfg.TTSModel)
+	tts, err := llm.NewGeminiTTS(secrets.GeminiAPIKey)
 	if err != nil {
 		return err
 	}

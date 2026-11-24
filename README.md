@@ -176,7 +176,7 @@ Shows, feeds and Schedules belong to a User and live in that User's file. The co
 - Each User has one `.toml` file in the folder `users_dir`, which is `users` by default. The file name is free, and the
   User is identified by the Id inside.
 - A file holds the User, its CastProfiles, and for each CastProfile the Subscriptions, Max Lookback, language, voice,
-  prompt and Schedules.
+  speaking model, prompt and Schedules.
 - The files are followed while the service runs, so an edit takes effect without a restart. A file that turns invalid
   keeps the last valid setup of its User, and the interface shows the problem. A deleted file takes its User away.
 - A User can edit their own file in the interface with "Edit User Config". To check files without starting anything

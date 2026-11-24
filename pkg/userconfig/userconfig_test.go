@@ -24,6 +24,7 @@ max_lookback = "24h"
 prompt = "Be brief."
 language = "en-US"
 voice = "Kore"
+tts_model = "gemini-3.8-flash-lite-tts"
 word_budget = 800
 
 [cast_profiles.morning.subscriptions.heise]
@@ -88,6 +89,7 @@ func TestLoadDirReadsAUsersSubscriptionsAndCastProfiles(t *testing.T) {
 	assert.Equal(t, "Be brief.", morning.Prompt)
 	assert.Equal(t, "en-US", morning.Language)
 	assert.Equal(t, "Kore", morning.Voice)
+	assert.Equal(t, "gemini-3.8-flash-lite-tts", morning.TTSModel)
 	assert.Equal(t, 800, morning.WordBudget)
 	assert.True(t, morning.Enabled, "a CastProfile is enabled unless it says otherwise")
 	require.Len(t, morning.Schedules, 1)
@@ -100,6 +102,7 @@ func TestLoadDirReadsAUsersSubscriptionsAndCastProfiles(t *testing.T) {
 	assert.False(t, evening.Enabled)
 	assert.Equal(t, 72*time.Hour, evening.MaxLookback)
 	assert.Zero(t, evening.WordBudget, "a CastProfile without a word_budget takes the service's")
+	assert.Empty(t, evening.TTSModel, "a CastProfile without a tts_model takes the service's")
 	require.Len(t, evening.Subscriptions, 1)
 	assert.Equal(t, "heise evening", evening.Subscriptions[0].DisplayName, "the same Id in another CastProfile is a Subscription of its own")
 	assert.Empty(t, evening.Schedules)

@@ -32,7 +32,7 @@ func testEpisodes(writer ScriptWriter) *Episodes {
 func testEpisodesWith(writer ScriptWriter, tts TTS, encoder AudioEncoder, repository EpisodeRepository, pause time.Duration) *Episodes {
 	berlin, _ := time.LoadLocation("Europe/Berlin")
 	clock := fixedClock{time.Date(2026, time.October, 29, 7, 0, 0, 0, time.UTC)}
-	return NewEpisodes(writer, tts, encoder, repository, clock, berlin, Voice{Language: "de-DE", Name: "Achernar"}, 4000, 12000, pause)
+	return NewEpisodes(writer, tts, encoder, repository, clock, berlin, Voice{Language: "de-DE", Name: "Achernar", Model: "default-model"}, 4000, 12000, pause)
 }
 
 // fixedClock is a Clock that stands still.

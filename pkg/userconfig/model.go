@@ -66,9 +66,10 @@ type CastProfile struct {
 	WordBudget int
 	// Prompt replaces the default style prompt when not empty.
 	Prompt string
-	// Language and Voice override the service defaults when not empty.
+	// Language, Voice and TTSModel override the service defaults when not empty.
 	Language string
 	Voice    string
+	TTSModel string
 	// Enabled is false when the CastProfile is switched off.
 	Enabled   bool
 	Schedules []Schedule

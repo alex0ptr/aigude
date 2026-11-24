@@ -75,7 +75,7 @@ func New(s settings.Settings, writer business.ScriptWriter, tts business.TTS, cr
 	audio := filestore.New(s.DataDir)
 	episodes := db.Episodes(audio)
 	cachingCrawler := business.NewCachingCrawler(crawler, db.CrawlCache(), clock, s.CrawlCacheTTL)
-	voice := business.Voice{Language: s.DefaultLanguage, Name: s.DefaultVoice}
+	voice := business.Voice{Language: s.DefaultLanguage, Name: s.DefaultVoice, Model: s.TTSModel}
 	producer := business.NewEpisodes(writer, tts, oggchapters.NewEncoder(pkgaudio.NewFFmpegConverter()), episodes, clock, loc, voice,
 		s.WordBudget, s.ArticleCharLimit, s.SectionPause)
 	profiles := configProfiles{store: store, crawler: cachingCrawler}

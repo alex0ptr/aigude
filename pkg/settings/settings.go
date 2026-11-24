@@ -59,7 +59,8 @@ type Settings struct {
 	FirecrawlURL string `mapstructure:"firecrawl_url"`
 	// ScriptModel is the Gemini model that writes the Script; it is not checked before the first request.
 	ScriptModel string `mapstructure:"script_model"`
-	// TTSModel is the Gemini model that speaks the Script; it is not checked before the first request.
+	// TTSModel is the Gemini model that speaks the Script unless a CastProfile names another (tts_model in the User
+	// Config); it is not checked before the first request.
 	TTSModel string `mapstructure:"tts_model"`
 	// SchedulerMaxSleep is the longest the background work sleeps before re-checking the wall clock.
 	SchedulerMaxSleep time.Duration `mapstructure:"scheduler_max_sleep"`
@@ -185,7 +186,7 @@ func NewFlagSet() *pflag.FlagSet {
 	fs.Duration(flagName("crawl_cache_ttl"), d.CrawlCacheTTL, "how long a retrieved page is served from the cache")
 	fs.String(flagName("firecrawl_url"), d.FirecrawlURL, "address of the Firecrawl API (FIRECRAWL_API_KEY is required for the hosted default only)")
 	fs.String(flagName("script_model"), d.ScriptModel, "Gemini model that writes the Script")
-	fs.String(flagName("tts_model"), d.TTSModel, "Gemini model that speaks the Script")
+	fs.String(flagName("tts_model"), d.TTSModel, "Gemini model that speaks the Script unless a CastProfile names another")
 	fs.Duration(flagName("scheduler_max_sleep"), d.SchedulerMaxSleep, "longest scheduler sleep before re-checking the clock")
 	fs.Duration(flagName("section_pause"), d.SectionPause, "silence between two Sections")
 	fs.Duration(flagName("episode_retention"), d.EpisodeRetention, "how long an Episode is kept before it is deleted; 0 keeps them for ever")
