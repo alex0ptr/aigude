@@ -1,11 +1,12 @@
 {{define "listened"}}<form class="listen" hx-post="/episodes/{{.ID}}/listened" hx-target="this" hx-swap="outerHTML">
   {{if .Listened}}<input type="hidden" name="listened" value="false">
   <button type="submit" class="listen-marker is-listened" aria-label="Listened. Mark as not listened." title="Listened. Click to mark as not listened.">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+    <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
   </button>
   {{else}}<input type="hidden" name="listened" value="true">
   <button type="submit" class="listen-marker is-unlistened" aria-label="Not listened yet. Mark as listened." title="Not listened yet. Click to mark as listened.">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+    <svg class="burst" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7V2M12 17v5M7 12H2M17 12h5M15.2 15.2l2.5 2.5M8.8 15.2l-2.5 2.5M8.8 8.8L6.3 6.3M15.2 8.8l2.5-2.5"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>
+    <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
   </button>
   {{end}}
 </form>{{end}}

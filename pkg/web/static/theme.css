@@ -481,13 +481,21 @@ body:has(.demo-bar) .app { padding-bottom: 72px; }
 .ep-item:has(.is-listened) .ep-title { color: var(--muted); }
 .listen { display: inline-flex; width: 42px; height: 42px; margin: 0; }
 .listen-marker {
-  display: inline-flex; flex: none; align-items: center; justify-content: center;
+  position: relative; display: inline-flex; flex: none; align-items: center; justify-content: center;
   width: 42px; min-width: 42px; height: 42px; padding: 0; margin: 0;
   background: none; border: 1.5px solid rgba(255, 46, 151, 0.5); border-radius: 50%;
   color: rgba(255, 46, 151, 0.7); cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background-color 0.15s;
 }
-.listen-marker svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.listen-marker svg {
+  position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  transition: opacity 0.15s;
+}
+.listen-marker .burst { width: 26px; height: 26px; margin: -13px 0 0 -13px; stroke-width: 2; }
+.listen-marker.is-unlistened .check { opacity: 0; }
+.listen-marker.is-unlistened:hover .check, .listen-marker.is-unlistened:focus-visible .check { opacity: 0.7; }
+.listen-marker.is-unlistened:hover .burst, .listen-marker.is-unlistened:focus-visible .burst { opacity: 0; }
 .listen-marker.is-listened { border-color: var(--line); background: rgba(185, 150, 255, 0.15); color: var(--muted); }
 .listen-marker:hover, .listen-marker:focus-visible { border-color: var(--pink); color: var(--pink); }
 .listen-marker.is-listened:hover, .listen-marker.is-listened:focus-visible { border-color: var(--cyan); color: var(--cyan); }
